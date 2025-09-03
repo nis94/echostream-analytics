@@ -19,20 +19,19 @@ Resources:
   DataLakeBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: "echostream-datalake-${AWS::AccountId}"
+      BucketName: !Sub "echostream-datalake-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
-    # --- Temporarily commented out to debug the InternalFailure ---
-    # LifecycleConfiguration:
-    #   Rules:
-    #     - Id: ArchiveAfter30Days
-    #       Status: Enabled
-    #       Transitions:
-    #         - StorageClass: GLACIER_IR # Use Glacier Instant Retrieval for cost savings
-    #           TransitionInDays: 30
+      LifecycleConfiguration:
+        Rules:
+          - Id: ArchiveAfter30Days
+            Status: Enabled
+            Transitions:
+              - StorageClass: GLACIER_IR # Use Glacier Instant Retrieval for cost savings 
+                TransitionInDays: 30
 
   # ------------------------------------------------------------
   # DynamoDB Table for Real-time Analytics
