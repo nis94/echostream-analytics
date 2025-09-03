@@ -10,7 +10,7 @@ Globals:
     MemorySize: 256
     Runtime: python3.11
     Architectures:
-      - [cite_start]arm64 # Use Graviton2 for better price-performance 
+      - arm64 # Use Graviton2 for better price-performance 
 
 Resources:
   # ------------------------------------------------------------
@@ -19,7 +19,7 @@ Resources:
   DataLakeBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "echostream-datalake-${AWS::AccountId}"
+      BucketName: "echostream-datalake-${AWS::AccountId}"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -30,7 +30,7 @@ Resources:
           - Id: ArchiveAfter30Days
             Status: Enabled
             Transitions:
-              - [cite_start]StorageClass: GLACIER_IR # Use Glacier Instant Retrieval for cost savings 
+              - StorageClass: GLACIER_IR # Use Glacier Instant Retrieval for cost savings 
                 TransitionInDays: 30
 
   # ------------------------------------------------------------
@@ -50,7 +50,7 @@ Resources:
           KeyType: "HASH"  # Partition Key
         - AttributeName: "SK"
           KeyType: "RANGE" # Sort Key
-      [cite_start]BillingMode: PAY_PER_REQUEST # Crucial for our budget - scales to zero 
+      BillingMode: PAY_PER_REQUEST # Crucial for our budget - scales to zero 
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
 
