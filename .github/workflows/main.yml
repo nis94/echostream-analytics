@@ -36,4 +36,4 @@ jobs:
         run: sam build
 
       - name: Deploy SAM Application
-        run: sam deploy --stack-name echostream-prod --no-confirm-changeset --no-fail-on-empty-changeset
+        run: sam deploy --stack-name echostream-prod --capabilities CAPABILITY_IAM --no-confirm-changeset --no-fail-on-empty-changeset
