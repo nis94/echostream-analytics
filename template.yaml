@@ -25,13 +25,14 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
-      LifecycleConfiguration:
-        Rules:
-          - Id: ArchiveAfter30Days
-            Status: Enabled
-            Transitions:
-              - StorageClass: GLACIER_IR # Use Glacier Instant Retrieval for cost savings 
-                TransitionInDays: 30
+    # --- Temporarily commented out to debug the InternalFailure ---
+    # LifecycleConfiguration:
+    #   Rules:
+    #     - Id: ArchiveAfter30Days
+    #       Status: Enabled
+    #       Transitions:
+    #         - StorageClass: GLACIER_IR # Use Glacier Instant Retrieval for cost savings
+    #           TransitionInDays: 30
 
   # ------------------------------------------------------------
   # DynamoDB Table for Real-time Analytics
