@@ -86,3 +86,29 @@ Resources:
                         - sts:AssumeRole
           ManagedPolicyArns:
               - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+          # ---- ADD THIS ENTIRE 'Policies' SECTION ----
+          Policies:
+            - PolicyName: EchoStreamProcessorPolicy
+              PolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                  - Effect: Allow
+                    Action:
+                      - s3:PutObject
+                    Resource: !Sub "${DataLakeBucket.Arn}/*"
+                  - Effect: Allow
+                    Action:
+                      - dynamodb:BatchWriteItem
+                    Resource: !GetAtt DataTable.Arn
+
+  ProcessorLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EchoStream-Processor
+      CodeUri: processor/
+      Handler: app.lambda_handler
+      Role: !GetAtt ProcessorLambdaRole.Arn
+      Environment:
+        Variables:
+          DATA_LAKE_BUCKET: !Ref DataLakeBucket
+          DATA_TABLE: !Ref DataTable
