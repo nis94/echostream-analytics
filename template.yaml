@@ -14,6 +14,12 @@ Globals:
 
 Resources:
   # ------------------------------------------------------------
+  # API Gateway (HTTP API)
+  # ------------------------------------------------------------
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+
+  # ------------------------------------------------------------
   # S3 Data Lake Bucket
   # ------------------------------------------------------------
   DataLakeBucket:
@@ -25,13 +31,6 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
-      LifecycleConfiguration:
-        Rules:
-          - Id: ArchiveAfter30Days
-            Status: Enabled
-            Transitions:
-              - StorageClass: GLACIER_IR # Use Glacier Instant Retrieval for cost savings 
-                TransitionInDays: 30
 
   # ------------------------------------------------------------
   # DynamoDB Table for Real-time Analytics
@@ -47,16 +46,27 @@ Resources:
           AttributeType: "S"
       KeySchema:
         - AttributeName: "PK"
-          KeyType: "HASH"  # Partition Key
+          KeyType: "HASH"
         - AttributeName: "SK"
-          KeyType: "RANGE" # Sort Key
-      BillingMode: PAY_PER_REQUEST # Crucial for our budget - scales to zero 
+          KeyType: "RANGE"
+      BillingMode: PAY_PER_REQUEST
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
 
   # ------------------------------------------------------------
-  # IAM Roles (Placeholders for now)
+  # Lambda Functions and Roles
   # ------------------------------------------------------------
+  ProducerLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EchoStream-Producer
+      CodeUri: producer/
+      Handler: app.lambda_handler
+      Role: !GetAtt ProducerLambdaRole.Arn
+      Environment:
+        Variables:
+          API_ENDPOINT_URL: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/ingest"
+
   ProducerLambdaRole:
       Type: AWS::IAM::Role
       Properties:
@@ -64,42 +74,19 @@ Resources:
               Version: '2012-10-17'
               Statement:
                   - Effect: Allow
-                    Principal:
-                        Service:
-                            - lambda.amazonaws.com
-                    Action:
-                        - sts:AssumeRole
+                    Principal: { Service: [lambda.amazonaws.com] }
+                    Action: [sts:AssumeRole]
           ManagedPolicyArns:
               - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-
-  ProcessorLambdaRole:
-      Type: AWS::IAM::Role
-      Properties:
-          AssumeRolePolicyDocument:
-              Version: '2012-10-17'
-              Statement:
-                  - Effect: Allow
-                    Principal:
-                        Service:
-                            - lambda.amazonaws.com
-                    Action:
-                        - sts:AssumeRole
-          ManagedPolicyArns:
-              - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-          # ---- ADD THIS ENTIRE 'Policies' SECTION ----
           Policies:
-            - PolicyName: EchoStreamProcessorPolicy
+            - PolicyName: EchoStreamProducerPolicy
               PolicyDocument:
                 Version: '2012-10-17'
                 Statement:
                   - Effect: Allow
                     Action:
-                      - s3:PutObject
-                    Resource: !Sub "${DataLakeBucket.Arn}/*"
-                  - Effect: Allow
-                    Action:
-                      - dynamodb:BatchWriteItem
-                    Resource: !GetAtt DataTable.Arn
+                      - execute-api:Invoke
+                    Resource: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*"
 
   ProcessorLambdaFunction:
     Type: AWS::Serverless::Function
@@ -112,3 +99,34 @@ Resources:
         Variables:
           DATA_LAKE_BUCKET: !Ref DataLakeBucket
           DATA_TABLE: !Ref DataTable
+      Events:
+        IngestApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /ingest
+            Method: post
+            ApiId: !Ref HttpApi
+
+  ProcessorLambdaRole:
+      Type: AWS::IAM::Role
+      Properties:
+          AssumeRolePolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                  - Effect: Allow
+                    Principal: { Service: [lambda.amazonaws.com] }
+                    Action: [sts:AssumeRole]
+          ManagedPolicyArns:
+              - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+          Policies:
+            - PolicyName: EchoStreamProcessorPolicy
+              PolicyDocument:
+                Version: '2012-10-17'
+                Statement:
+                  - Effect: Allow
+                    Action: [s3:PutObject]
+                    Resource: !Sub "${DataLakeBucket.Arn}/*"
+                  - Effect: Allow
+                    Action: [dynamodb:BatchWriteItem]
+                    Resource: !GetAtt DataTable.Arn
+  
