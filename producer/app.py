@@ -14,6 +14,9 @@ def lambda_handler(event, context):
     Generates a batch of mock social media posts and sends them to
     the EchoStream Analytics API Gateway endpoint.
     """
+
+    texts = ["This is a mock post.", "I absolutely love this new feature! It's amazing!", "This is the worst user experience I've ever had. It's terrible."]
+
     posts = []
     for i in range(3): # Generate 3 mock posts
         now = datetime.now(timezone.utc)
@@ -22,7 +25,7 @@ def lambda_handler(event, context):
         
         post = {
             "id": f"post-{post_id}",
-            "text": f"This is a mock post number {i+1} with a unique ID.",
+            "text": texts[i],
             "author": f"mock_user_{i+1}",
             "timestamp": timestamp,
             "source": "Mock"

@@ -1,12 +1,13 @@
 import os
 import json
-import boto3
+import boto3 # Make sure boto3 is imported
 import uuid
 from datetime import datetime
 
-# --- AWS Clients (no changes) ---
+# --- AWS Clients ---
 s3 = boto3.client("s3")
 dynamodb = boto3.resource("dynamodb")
+comprehend = boto3.client("comprehend") # Add the Comprehend client
 DATA_LAKE_BUCKET = os.environ.get("DATA_LAKE_BUCKET")
 DATA_TABLE = os.environ.get("DATA_TABLE")
 table = dynamodb.Table(DATA_TABLE)
@@ -16,9 +17,22 @@ table = dynamodb.Table(DATA_TABLE)
 class ComprehendSentimentAnalyzer:
     """Uses AWS Comprehend to detect sentiment."""
     def detect_sentiment(self, text):
-        # TODO: Implement Boto3 call to Comprehend in the next step
-        print("Pretending to call Comprehend API...")
-        return {"Sentiment": "NEUTRAL", "SentimentScore": {"Neutral": 0.99}}
+        # The DetectSentiment API has a 5000 byte limit on text size
+        # We truncate the text to ensure we don't exceed this limit.
+        truncated_text = text.encode('utf-8')[:5000].decode('utf-8', 'ignore')
+        
+        print(f"Calling Comprehend for text: {truncated_text[:100]}...")
+        
+        # This is the actual API call to AWS Comprehend 
+        response = comprehend.detect_sentiment(
+            Text=truncated_text,
+            LanguageCode="en"
+        )
+        # The response format is already what we need, so we just return it.
+        # e.g., {'Sentiment': 'POSITIVE', 'SentimentScore': {...}}
+        return response
+
+# ... (The rest of your processor/app.py file remains the same) ...
 
 class NLTKSentimentAnalyzer:
     """Uses a self-hosted NLTK model to detect sentiment."""
