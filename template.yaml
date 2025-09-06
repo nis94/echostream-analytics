@@ -99,6 +99,7 @@ Resources:
         Variables:
           DATA_LAKE_BUCKET: !Ref DataLakeBucket
           DATA_TABLE: !Ref DataTable
+          SENTIMENT_ENGINE: comprehend
       Events:
         IngestApiEvent:
           Type: HttpApi
@@ -129,4 +130,8 @@ Resources:
                   - Effect: Allow
                     Action: [dynamodb:BatchWriteItem]
                     Resource: !GetAtt DataTable.Arn
+                  - Effect: Allow
+                    Action:
+                      - comprehend:DetectSentiment
+                    Resource: "*"
   
