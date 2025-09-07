@@ -3,6 +3,11 @@ import json
 import boto3 # Make sure boto3 is imported
 import uuid
 from datetime import datetime
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import nltk
+
+# NLTK data needs to be loaded from the Lambda Layer path
+nltk.data.path.append("./nltk_data")
 
 # --- AWS Clients ---
 s3 = boto3.client("s3")
@@ -32,9 +37,37 @@ class ComprehendSentimentAnalyzer:
         # e.g., {'Sentiment': 'POSITIVE', 'SentimentScore': {...}}
         return response
 
-# ... (The rest of your processor/app.py file remains the same) ...
-
 class NLTKSentimentAnalyzer:
+    """Uses a self-hosted NLTK model to detect sentiment."""
+    def __init__(self):
+        # Initialize the analyzer once per container reuse
+        self.analyzer = SentimentIntensityAnalyzer()
+
+    def detect_sentiment(self, text):
+        print(f"Running NLTK VADER for text: {text[:100]}...")
+        
+        # Get scores from VADER
+        scores = self.analyzer.polarity_scores(text)
+        
+        # Determine the overall sentiment based on the compound score
+        if scores['compound'] >= 0.05:
+            sentiment = 'POSITIVE'
+        elif scores['compound'] <= -0.05:
+            sentiment = 'NEGATIVE'
+        else:
+            sentiment = 'NEUTRAL'
+            
+        # Format the output to match the structure of the Comprehend response
+        return {
+            "Sentiment": sentiment,
+            "SentimentScore": {
+                "Positive": scores['pos'],
+                "Negative": scores['neg'],
+                "Neutral": scores['neu'],
+                "Mixed": 0 # VADER doesn't have a mixed score, so we'll default to 0
+            }
+        }
+    
     """Uses a self-hosted NLTK model to detect sentiment."""
     def detect_sentiment(self, text):
         # TODO: Implement self-hosted NLTK VADER logic in a future step
