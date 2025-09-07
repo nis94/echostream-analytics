@@ -7,7 +7,7 @@ from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
 
 # NLTK data needs to be loaded from the Lambda Layer path
-nltk.data.path.append("./nltk_data")
+nltk.data.path.append("/opt/python/nltk_data")
 
 # --- AWS Clients ---
 s3 = boto3.client("s3")
