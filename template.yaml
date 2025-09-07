@@ -143,3 +143,42 @@ Resources:
                     Action:
                       - comprehend:DetectSentiment
                     Resource: "*"
+
+  QueryLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EchoStream-Query
+      CodeUri: query/
+      Handler: app.lambda_handler
+      Role: !GetAtt QueryLambdaRole.Arn
+      Environment:
+        Variables:
+          DATA_TABLE: !Ref DataTable
+      Events:
+        QueryApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /query
+            Method: get
+            ApiId: !Ref HttpApi
+
+  QueryLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [lambda.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: EchoStreamQueryPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                Resource: !GetAtt DataTable.Arn
