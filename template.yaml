@@ -231,4 +231,8 @@ Resources:
           CachedMethods:
             - GET
             - HEAD
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
         PriceClass: PriceClass_100 # Use only North America and Europe edge locations for cost savings
