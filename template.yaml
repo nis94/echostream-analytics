@@ -214,7 +214,7 @@ Resources:
     Properties:
       DistributionConfig:
         Origins:
-          - DomainName: !GetAtt FrontendBucket.WebsiteURL
+          - DomainName: !Select [1, !Split ['://', !GetAtt FrontendBucket.WebsiteURL]]
             Id: S3Origin
             CustomOriginConfig:
               HTTPPort: 80
