@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EchoStream Analytics</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f9; color: #333; margin: 2em; }
+        h1, h2 { color: #0d1b2a; }
+        #container { background-color: white; padding: 2em; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        input { padding: 8px; margin-right: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        th { background-color: #f7f7f7; }
+        #error { color: red; }
+        #info { color: #0056b3; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>🌊 EchoStream Analytics</h1>
+        <p>A dashboard to display real-time social media sentiment.</p>
+        
+        <h2>Query Parameters</h2>
+        <input type="text" id="tenant_id" value="tenant-456" placeholder="Tenant ID">
+        <input type="text" id="topic" value="mock-data-varied" placeholder="Topic">
+        <button onclick="fetchData()">Fetch Data</button>
+        
+        <p id="info"></p>
+        <p id="error"></p>
+
+        <h2>Results</h2>
+        <table id="results-table">
+            <thead>
+                <tr id="table-header"></tr>
+            </thead>
+            <tbody id="table-body"></tbody>
+        </table>
+    </div>
+
+    <script>
+        // IMPORTANT: Replace with your API's Invoke URL
+        const API_INVOKE_URL = "https://qze6bnym65.execute-api.us-east-1.amazonaws.com";
+
+        async function fetchData() {
+            const tenantId = document.getElementById('tenant_id').value;
+            const topic = document.getElementById('topic').value;
+            const info = document.getElementById('info');
+            const error = document.getElementById('error');
+            const tableHeader = document.getElementById('table-header');
+            const tableBody = document.getElementById('table-body');
+
+            // Clear previous results
+            info.textContent = '';
+            error.textContent = '';
+            tableHeader.innerHTML = '';
+            tableBody.innerHTML = '';
+
+            if (!tenantId || !topic) {
+                error.textContent = 'Tenant ID and Topic are required.';
+                return;
+            }
+
+            const queryUrl = `${API_INVOKE_URL}/query?tenant_id=${tenantId}&topic=${topic}`;
+            info.textContent = `Fetching data from: ${queryUrl}`;
+
+            try {
+                const response = await fetch(queryUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (data.length === 0) {
+                    info.textContent = 'Query returned no results.';
+                    return;
+                }
+
+                // Create table headers from the keys of the first object
+                const headers = Object.keys(data[0]);
+                tableHeader.innerHTML = headers.map(h => `<th>${h}</th>`).join('');
+
+                // Create table rows
+                tableBody.innerHTML = data.map(row => {
+                    return `<tr>${headers.map(h => `<td>${row[h]}</td>`).join('')}</tr>`;
+                }).join('');
+                
+                info.textContent = `Successfully fetched ${data.length} posts.`;
+
+            } catch (e) {
+                console.error('Fetch error:', e);
+                error.textContent = `An error occurred: ${e.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
