@@ -96,7 +96,7 @@ Resources:
       Environment:
         Variables:
           STREAM_NAME: !Ref DataStream
-          SECRET_NAME: echostream/reddit-credentials-1
+          SECRET_NAME: echostream/reddit-credentials-v1
 
 
   ProducerLambdaRole:
