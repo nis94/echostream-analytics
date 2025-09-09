@@ -1,66 +1,78 @@
 import os
 import json
 import boto3
+import praw # New import
 import uuid
-from datetime import datetime, timezone
 
-# Boto3 Kinesis client
+# Boto3 clients
 kinesis_client = boto3.client("kinesis")
+secrets_client = boto3.client("secretsmanager")
 
-# Get the Kinesis stream name from an environment variable
+# Get configuration from environment variables
 STREAM_NAME = os.environ.get("STREAM_NAME")
+SECRET_NAME = os.environ.get("SECRET_NAME")
 
+# --- Function to fetch secrets ---
+def get_reddit_credentials():
+    """Fetches Reddit API credentials from AWS Secrets Manager."""
+    response = secrets_client.get_secret_value(SecretId=SECRET_NAME)
+    return json.loads(response['SecretString'])
+
+# --- Main Lambda Handler ---
 def lambda_handler(event, context):
     """
-    Generates a batch of mock social media posts and sends them to
-    the Kinesis Data Stream.
+    Fetches live comments from Reddit and pushes them to a Kinesis stream.
     """
-    texts = [
-        "This is a mock post for our Kinesis pipeline.", 
-        "I absolutely love this new feature! It's amazing!", 
-        "This is the worst user experience I've ever had. It's terrible."
-    ]
-
-    records = []
-    for text_content in texts:
-        now = datetime.now(timezone.utc)
+    credentials = get_reddit_credentials()
+    
+    # Initialize the Reddit client
+    reddit = praw.Reddit(
+        client_id=credentials['REDDIT_CLIENT_ID'],
+        client_secret=credentials['REDDIT_CLIENT_SECRET'],
+        user_agent=credentials['REDDIT_USER_AGENT'],
+        username=credentials['REDDIT_USERNAME'],
+        password=credentials['REDDIT_PASSWORD'],
+    )
+    
+    subreddit = reddit.subreddit("all") # Monitor the 'all' subreddit for high volume
+    print("Successfully connected to Reddit. Starting to stream comments...")
+    
+    records_to_send = []
+    # Stream comments and limit to 20 to keep the Lambda execution short
+    for comment in subreddit.stream.comments(skip_existing=True):
         post = {
-            "id": f"post-{uuid.uuid4()}",
-            "text": text_content,
-            "author": f"mock_user_{uuid.uuid4()}",
-            "timestamp": now.strftime('%Y-%m-%dT%H:%M:%SZ'),
-            "source": "RedditMock"
+            "id": comment.id,
+            "text": comment.body,
+            "author": str(comment.author),
+            "timestamp": datetime.utcfromtimestamp(comment.created_utc).isoformat() + "Z",
+            "source": f"reddit/r/{comment.subreddit.display_name}"
         }
         
-        # Kinesis requires a list of records, each with 'Data' and a 'PartitionKey'
         record = {
             "Data": json.dumps(post).encode("utf-8"),
-            "PartitionKey": str(uuid.uuid4()) # Use a random UUID for even distribution
+            "PartitionKey": comment.id
         }
-        records.append(record)
-
-    # The full payload sent to the Processor Lambda will be structured by Kinesis
-    # Here we just create the top-level keys that our Processor expects
-    payload = {
-        "tenant_id": "tenant-789",
-        "topic": "kinesis-test",
-        "posts": records # Note: This structure will be slightly different after Kinesis processing
-    }
+        records_to_send.append(record)
+        
+        # Send records in batches of 20 and then exit to avoid long runs
+        if len(records_to_send) >= 20:
+            break
+            
+    if not records_to_send:
+        print("No new comments found in this invocation.")
+        return {"statusCode": 200, "body": "No new comments found."}
 
     try:
-        print(f"Sending {len(records)} records to Kinesis stream: {STREAM_NAME}")
+        print(f"Sending {len(records_to_send)} live comments to Kinesis stream: {STREAM_NAME}")
         
-        # Use put_records for batching, which is more efficient
-        response = kinesis_client.put_records(
+        kinesis_client.put_records(
             StreamName=STREAM_NAME,
-            Records=records
+            Records=records_to_send
         )
-        
-        print(f"Kinesis response: {response}")
         
         return {
             "statusCode": 200,
-            "body": f"Successfully sent {len(records)} records to Kinesis."
+            "body": f"Successfully sent {len(records_to_send)} live comments to Kinesis."
         }
         
     except Exception as e:
