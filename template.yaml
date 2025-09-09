@@ -19,7 +19,7 @@ Resources:
   RedditCredentialsSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: echostream/reddit-credentials
+      Name: echostream/reddit-credentials-v1
       Description: "Stores credentials for the Reddit API client."
       SecretString: '{"REDDIT_CLIENT_ID": "REPLACE_IN_CONSOLE", "REDDIT_CLIENT_SECRET": "REPLACE_IN_CONSOLE", "REDDIT_USER_AGENT": "REPLACE_IN_CONSOLE", "REDDIT_USERNAME": "REPLACE_IN_CONSOLE", "REDDIT_PASSWORD": "REPLACE_IN_CONSOLE"}'
   
@@ -96,7 +96,7 @@ Resources:
       Environment:
         Variables:
           STREAM_NAME: !Ref DataStream
-          SECRET_NAME: echostream/reddit-credentials
+          SECRET_NAME: echostream/reddit-credentials-1
 
 
   ProducerLambdaRole:
