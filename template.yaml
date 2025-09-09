@@ -13,13 +13,14 @@ Globals:
       - arm64 # Use Graviton2 for better price-performance 
 
 Resources:
-  NltkLayer:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: EchoStream-NltkLayer
-      ContentUri: layers/nltk_layer/
-      CompatibleRuntimes:
-        - python3.11
+  # NltkLayer:
+  #   Type: AWS::Serverless::LayerVersion
+  #   Properties:
+  #     LayerName: EchoStream-NltkLayer
+  #     ContentUri: layers/nltk_layer/
+  #     CompatibleRuntimes:
+  #       - python3.11
+  
   # ------------------------------------------------------------
   # API Gateway (HTTP API)
   # ------------------------------------------------------------
@@ -112,13 +113,13 @@ Resources:
       CodeUri: processor/
       Handler: app.lambda_handler
       Role: !GetAtt ProcessorLambdaRole.Arn
-      Layers:
-        - !Ref NltkLayer
+      # Layers:
+      #  - !Ref NltkLayer
       Environment:
         Variables:
           DATA_LAKE_BUCKET: !Ref DataLakeBucket
           DATA_TABLE: !Ref DataTable
-          SENTIMENT_ENGINE: nltk
+          SENTIMENT_ENGINE: comprehend # nltk
       Events:
         StreamEvent:
           Type: Kinesis

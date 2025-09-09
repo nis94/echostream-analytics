@@ -1,70 +1,68 @@
 import os
 import json
+import boto3
 import uuid
-import urllib3
 from datetime import datetime, timezone
 
-http = urllib3.PoolManager()
+# Boto3 Kinesis client
+kinesis_client = boto3.client("kinesis")
 
-# Get the API endpoint URL from an environment variable
-API_ENDPOINT_URL = os.environ.get("API_ENDPOINT_URL")
+# Get the Kinesis stream name from an environment variable
+STREAM_NAME = os.environ.get("STREAM_NAME")
 
 def lambda_handler(event, context):
     """
     Generates a batch of mock social media posts and sends them to
-    the EchoStream Analytics API Gateway endpoint.
+    the Kinesis Data Stream.
     """
+    texts = [
+        "This is a mock post for our Kinesis pipeline.", 
+        "I absolutely love this new feature! It's amazing!", 
+        "This is the worst user experience I've ever had. It's terrible."
+    ]
 
-    texts = ["This is a mock post.", "I absolutely love this new feature! It's amazing!", "This is the worst user experience I've ever had. It's terrible."]
-
-    posts = []
-    for i in range(3): # Generate 3 mock posts
+    records = []
+    for text_content in texts:
         now = datetime.now(timezone.utc)
-        timestamp = now.strftime('%Y-%m-%dT%H:%M:%SZ')
-        post_id = str(uuid.uuid4())
-        
         post = {
-            "id": f"post-{post_id}",
-            "text": texts[i],
-            "author": f"mock_user_{i+1}",
-            "timestamp": timestamp,
-            "source": "Mock"
+            "id": f"post-{uuid.uuid4()}",
+            "text": text_content,
+            "author": f"mock_user_{uuid.uuid4()}",
+            "timestamp": now.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "source": "RedditMock"
         }
-        posts.append(post)
+        
+        # Kinesis requires a list of records, each with 'Data' and a 'PartitionKey'
+        record = {
+            "Data": json.dumps(post).encode("utf-8"),
+            "PartitionKey": str(uuid.uuid4()) # Use a random UUID for even distribution
+        }
+        records.append(record)
 
-    # This is the payload our ProcessorLambda expects
+    # The full payload sent to the Processor Lambda will be structured by Kinesis
+    # Here we just create the top-level keys that our Processor expects
     payload = {
-        "tenant_id": "tenant-456",
-        "topic": "mock-data",
-        "posts": posts
-    }
-    
-    encoded_payload = json.dumps(payload).encode("utf-8")
-    
-    headers = {
-        "Content-Type": "application/json"
+        "tenant_id": "tenant-789",
+        "topic": "kinesis-test",
+        "posts": records # Note: This structure will be slightly different after Kinesis processing
     }
 
     try:
-        print(f"Sending payload to {API_ENDPOINT_URL}")
-        resp = http.request(
-            "POST",
-            API_ENDPOINT_URL,
-            body=encoded_payload,
-            headers=headers
+        print(f"Sending {len(records)} records to Kinesis stream: {STREAM_NAME}")
+        
+        # Use put_records for batching, which is more efficient
+        response = kinesis_client.put_records(
+            StreamName=STREAM_NAME,
+            Records=records
         )
         
-        print(f"Response status: {resp.status}")
-        print(f"Response data: {resp.data.decode('utf-8')}")
+        print(f"Kinesis response: {response}")
         
-        if resp.status != 200:
-            raise Exception("Failed to send data to API")
-
         return {
             "statusCode": 200,
-            "body": "Successfully sent mock data batch."
+            "body": f"Successfully sent {len(records)} records to Kinesis."
         }
         
     except Exception as e:
-        print(f"Error sending data: {e}")
+        print(f"Error sending data to Kinesis: {e}")
         raise e
