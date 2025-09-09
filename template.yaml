@@ -27,6 +27,15 @@ Resources:
     Type: AWS::Serverless::HttpApi
 
   # ------------------------------------------------------------
+  # Kinesis Data Stream
+  # ------------------------------------------------------------
+  DataStream:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      Name: EchoStream-DataStream
+      ShardCount: 1 # Start with 1 shard to stay in the free tier and control costs
+
+  # ------------------------------------------------------------
   # S3 Data Lake Bucket
   # ------------------------------------------------------------
   DataLakeBucket:
@@ -72,7 +81,7 @@ Resources:
       Role: !GetAtt ProducerLambdaRole.Arn
       Environment:
         Variables:
-          API_ENDPOINT_URL: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/ingest"
+          STREAM_NAME: !Ref DataStream
 
   ProducerLambdaRole:
       Type: AWS::IAM::Role
@@ -92,8 +101,9 @@ Resources:
                 Statement:
                   - Effect: Allow
                     Action:
-                      - execute-api:Invoke
-                    Resource: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*"
+                      - kinesis:PutRecord
+                      - kinesis:PutRecords
+                    Resource: !GetAtt DataStream.Arn
 
   ProcessorLambdaFunction:
     Type: AWS::Serverless::Function
@@ -110,12 +120,12 @@ Resources:
           DATA_TABLE: !Ref DataTable
           SENTIMENT_ENGINE: nltk
       Events:
-        IngestApiEvent:
-          Type: HttpApi
+        StreamEvent:
+          Type: Kinesis
           Properties:
-            Path: /ingest
-            Method: post
-            ApiId: !Ref HttpApi
+            Stream: !GetAtt DataStream.Arn
+            BatchSize: 100
+            StartingPosition: LATEST
 
   ProcessorLambdaRole:
       Type: AWS::IAM::Role
