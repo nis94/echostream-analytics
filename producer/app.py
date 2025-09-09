@@ -1,8 +1,9 @@
 import os
 import json
 import boto3
-import praw # New import
-import uuid
+import praw
+from datetime import datetime
+
 
 # Boto3 clients
 kinesis_client = boto3.client("kinesis")
