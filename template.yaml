@@ -20,7 +20,7 @@ Resources:
   #     ContentUri: layers/nltk_layer/
   #     CompatibleRuntimes:
   #       - python3.11
-  
+
   # ------------------------------------------------------------
   # API Gateway (HTTP API)
   # ------------------------------------------------------------
@@ -151,9 +151,16 @@ Resources:
                     Action: [dynamodb:BatchWriteItem]
                     Resource: !GetAtt DataTable.Arn
                   - Effect: Allow
-                    Action:
-                      - comprehend:DetectSentiment
+                    Action: [comprehend:DetectSentiment]
                     Resource: "*"
+                  # --- ADD THIS NEW STATEMENT BLOCK ---
+                  - Effect: Allow
+                    Action:
+                      - kinesis:GetRecords
+                      - kinesis:GetShardIterator
+                      - kinesis:DescribeStream
+                      - kinesis:ListShards
+                    Resource: !GetAtt DataStream.Arn
 
   QueryLambdaFunction:
     Type: AWS::Serverless::Function
