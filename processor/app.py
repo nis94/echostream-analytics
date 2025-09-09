@@ -3,6 +3,7 @@ import json
 import boto3 # Make sure boto3 is imported
 import uuid
 from datetime import datetime
+import base64
 
 # --- AWS Clients ---
 s3 = boto3.client("s3")
@@ -88,46 +89,46 @@ def get_analyzer(engine_name="comprehend"):
     return AnalyzerClass()
 
 
-# --- Main Lambda Handler (Refactored) ---
-
+# --- Main Lambda Handler (Refactored for Kinesis) ---
 def lambda_handler(event, context):
-    """
-    Receives data, enriches it with sentiment analysis, and stores it.
-    """
-    print(f"Received event: {event}")
+    print(f"Received Kinesis event with {len(event.get('Records', []))} records.")
     
-    # Get the desired sentiment engine from environment variables
     engine_name = os.environ.get("SENTIMENT_ENGINE", "comprehend")
     analyzer = get_analyzer(engine_name)
     
-    try:
-        body = json.loads(event.get("body", "{}"))
-        posts = body.get("posts", [])
-        tenant_id = body.get("tenant_id", "default-tenant")
-        topic = body.get("topic", "general")
+    posts_to_process = []
+    # --- NEW: KINESIS EVENT PARSING LOGIC ---
+    for record in event.get('Records', []):
+        try:
+            # Kinesis data is base64 encoded, so we must decode it
+            payload_bytes = base64.b64decode(record['kinesis']['data'])
+            post = json.loads(payload_bytes)
+            posts_to_process.append(post)
+        except Exception as e:
+            print(f"Could not decode or parse record. Skipping. Error: {e}")
+            continue # Move to the next record
+
+    if not posts_to_process:
+        print("No processable posts found in the event. Exiting.")
+        return
         
-        if not posts:
-            return {"statusCode": 400, "body": "No posts found in request body."}
-    except json.JSONDecodeError:
-        return {"statusCode": 400, "body": "Invalid JSON in request body."}
+    # For our v2.0 stream, let's use a fixed tenant/topic for now
+    tenant_id = "tenant-kinesis-001"
+    topic = "live-reddit-stream"
 
-    # 1. Write raw batch to S3 (no changes)
-    try:
-        now = datetime.utcnow()
-        s3_key = f"raw/{now.strftime('%Y/%m/%d')}/{uuid.uuid4()}.json"
-        s3.put_object(Bucket=DATA_LAKE_BUCKET, Key=s3_key, Body=json.dumps(body))
-        print(f"Successfully wrote raw batch to S3: {s3_key}")
-    except Exception as e:
-        print(f"Error writing to S3: {e}")
-        raise e
-
-    # 2. Enrich and write each post to DynamoDB (UPDATED)
+    # --- UPDATED: Write each post to S3 and DynamoDB ---
     try:
         with table.batch_writer() as batch:
-            for post in posts:
-                # *** NEW: Perform sentiment analysis ***
+            for post in posts_to_process:
+                # 1. Write the raw post to S3
+                now = datetime.utcnow()
+                s3_key = f"raw/{tenant_id}/{topic}/{now.strftime('%Y/%m/%d')}/{post['id']}.json"
+                s3.put_object(Bucket=DATA_LAKE_BUCKET, Key=s3_key, Body=json.dumps(post))
+                
+                # 2. Enrich the post with sentiment
                 sentiment_result = analyzer.detect_sentiment(post["text"])
                 
+                # 3. Prepare and write the enriched item to DynamoDB
                 item = {
                     "PK": f"{tenant_id}#{topic}",
                     "SK": f"{post['timestamp']}#{post['id']}",
@@ -136,7 +137,6 @@ def lambda_handler(event, context):
                     "author": post["author"],
                     "timestamp": post["timestamp"],
                     "source": post["source"],
-                    # *** NEW: Add sentiment data to the item ***
                     "sentiment": sentiment_result.get("Sentiment"),
                     "sentiment_score_positive": str(sentiment_result.get("SentimentScore", {}).get("Positive", 0)),
                     "sentiment_score_negative": str(sentiment_result.get("SentimentScore", {}).get("Negative", 0)),
@@ -144,12 +144,13 @@ def lambda_handler(event, context):
                     "sentiment_score_mixed": str(sentiment_result.get("SentimentScore", {}).get("Mixed", 0)),
                 }
                 batch.put_item(Item=item)
-        print(f"Successfully wrote {len(posts)} enriched items to DynamoDB.")
+
+        print(f"Successfully processed and stored {len(posts_to_process)} posts.")
     except Exception as e:
-        print(f"Error writing to DynamoDB: {e}")
+        print(f"Error during S3/DynamoDB processing: {e}")
         raise e
 
     return {
         "statusCode": 200,
-        "body": json.dumps({"message": "Data processed and enriched successfully"})
+        "body": "Successfully processed records."
     }
