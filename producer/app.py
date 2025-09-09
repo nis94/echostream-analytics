@@ -38,7 +38,7 @@ def lambda_handler(event, context):
     print("Successfully connected to Reddit. Starting to stream comments...")
     
     records_to_send = []
-    # Stream comments and limit to 20 to keep the Lambda execution short
+    # Stream comments and limit to 10 to keep the Lambda execution short
     for comment in subreddit.stream.comments(skip_existing=True):
         post = {
             "id": comment.id,
@@ -54,8 +54,8 @@ def lambda_handler(event, context):
         }
         records_to_send.append(record)
         
-        # Send records in batches of 20 and then exit to avoid long runs
-        if len(records_to_send) >= 20:
+        # Send records in batches of 10 and then exit to avoid long runs
+        if len(records_to_send) >= 10:
             break
             
     if not records_to_send:

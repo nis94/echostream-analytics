@@ -93,6 +93,7 @@ Resources:
       CodeUri: producer/
       Handler: app.lambda_handler
       Role: !GetAtt ProducerLambdaRole.Arn
+      Timeout: 30
       Environment:
         Variables:
           STREAM_NAME: !Ref DataStream
