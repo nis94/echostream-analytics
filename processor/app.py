@@ -3,11 +3,6 @@ import json
 import boto3 # Make sure boto3 is imported
 import uuid
 from datetime import datetime
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
-import nltk
-
-# NLTK data needs to be loaded from the Lambda Layer path
-nltk.data.path.append("/opt/python/nltk_data")
 
 # --- AWS Clients ---
 s3 = boto3.client("s3")
@@ -40,6 +35,11 @@ class ComprehendSentimentAnalyzer:
 class NLTKSentimentAnalyzer:
     """Uses a self-hosted NLTK model to detect sentiment."""
     def __init__(self):
+        from nltk.sentiment.vader import SentimentIntensityAnalyzer
+        import nltk
+
+        # NLTK data needs to be loaded from the Lambda Layer path
+        nltk.data.path.append("/opt/python/nltk_data")
         # Initialize the analyzer once per container reuse
         self.analyzer = SentimentIntensityAnalyzer()
 
