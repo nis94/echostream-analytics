@@ -30,7 +30,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1 # Change this to your preferred AWS region
+          aws-region: eu-central-1
       
       - name: Clean SAM build cache
         run: rm -rf .aws-sam/
@@ -39,4 +39,4 @@ jobs:
         run: sam build
 
       - name: Deploy SAM Application
-        run: sam deploy --stack-name echostream-prod --region us-east-1 --capabilities CAPABILITY_IAM --resolve-s3 --no-confirm-changeset --no-fail-on-empty-changeset
+        run: sam deploy --stack-name echostream-prod --region eu-central-1 --capabilities CAPABILITY_IAM --resolve-s3 --no-confirm-changeset --no-fail-on-empty-changeset
