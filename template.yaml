@@ -92,6 +92,8 @@ Resources:
   # S3 Data Lake Bucket
   # ------------------------------------------------------------
   DataLakeBucket:
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub "echostream-datalake-${AWS::AccountId}-${AWS::Region}"
@@ -265,6 +267,8 @@ Resources:
   # Add these resources to the end of your Resources section in template.yaml
   
   FrontendBucket:
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Type: AWS::S3::Bucket
     Properties:
       WebsiteConfiguration:
