@@ -39,6 +39,45 @@ Resources:
   # ------------------------------------------------------------
   HttpApi:
     Type: AWS::Serverless::HttpApi
+    Properties:
+      Auth:
+        Authorizers:
+          JwtAuthorizer:
+            JwtConfiguration:
+              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+              audience:
+                - !Ref UserPoolClient
+            IdentitySource: "$request.header.Authorization"
+        DefaultAuthorizer: JwtAuthorizer
+  
+  # ------------------------------------------------------------
+  # Cognito User Pool for Multi-Tenancy
+  # ------------------------------------------------------------
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: EchoStream-UserPool
+      AliasAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          RequireUppercase: true
+      Schema:
+        - Name: tenant_id
+          AttributeDataType: String
+          Mutable: false
+          Required: true
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: EchoStream-WebClient
+      GenerateSecret: false # Not needed for a public web client
 
   # ------------------------------------------------------------
   # Kinesis Data Stream
@@ -199,6 +238,8 @@ Resources:
             Path: /query
             Method: get
             ApiId: !Ref HttpApi
+            Auth:
+              Authorizer: JwtAuthorizer
 
   QueryLambdaRole:
     Type: AWS::IAM::Role
