@@ -154,6 +154,7 @@ Resources:
         Variables:
           STREAM_NAME: !Ref DataStream
           SECRET_NAME: echostream/reddit-credentials-v1
+          TENANTS_TABLE_NAME: !Ref TenantsTable
 
 
   ProducerLambdaRole:
@@ -181,6 +182,10 @@ Resources:
                     Action:
                       - secretsmanager:GetSecretValue
                     Resource: !Ref RedditCredentialsSecret # Now references our new secret resource
+                  - Effect: Allow
+                    Action:
+                      - dynamodb:Scan
+                    Resource: !GetAtt TenantsTable.Arn
 
   ProcessorLambdaFunction:
     Type: AWS::Serverless::Function
