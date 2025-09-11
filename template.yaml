@@ -125,6 +125,21 @@ Resources:
         PointInTimeRecoveryEnabled: true
 
   # ------------------------------------------------------------
+  # DynamoDB Table for Tenants Data
+  # ------------------------------------------------------------
+  TenantsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: EchoStream-TenantsTable
+      AttributeDefinitions:
+        - AttributeName: "tenant_id"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "tenant_id"
+          KeyType: "HASH" # Partition Key
+      BillingMode: PAY_PER_REQUEST
+
+  # ------------------------------------------------------------
   # Lambda Functions and Roles
   # ------------------------------------------------------------
   ProducerLambdaFunction:
@@ -214,7 +229,6 @@ Resources:
                   - Effect: Allow
                     Action: [comprehend:DetectSentiment]
                     Resource: "*"
-                  # --- ADD THIS NEW STATEMENT BLOCK ---
                   - Effect: Allow
                     Action:
                       - kinesis:GetRecords
@@ -263,8 +277,6 @@ Resources:
                 Action:
                   - dynamodb:Query
                 Resource: !GetAtt DataTable.Arn
-
-  # Add these resources to the end of your Resources section in template.yaml
   
   FrontendBucket:
     DeletionPolicy: Delete
