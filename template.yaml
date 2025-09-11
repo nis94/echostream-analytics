@@ -69,7 +69,7 @@ Resources:
       Schema:
         - Name: tenant_id
           AttributeDataType: String
-          Mutable: false
+          Mutable: true
           Required: false
 
   UserPoolClient:
@@ -109,7 +109,7 @@ Resources:
   DataTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: EchoStreamDataTable
+      TableName: EchoStream_DataTable
       AttributeDefinitions:
         - AttributeName: "PK"
           AttributeType: "S"
@@ -130,7 +130,7 @@ Resources:
   TenantsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: EchoStream-TenantsTable
+      TableName: EchoStream_TenantsTable
       AttributeDefinitions:
         - AttributeName: "tenant_id"
           AttributeType: "S"

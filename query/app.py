@@ -9,27 +9,30 @@ table = dynamodb.Table(DATA_TABLE)
 
 def lambda_handler(event, context):
     """
-    Handles GET requests to query data from DynamoDB for the dashboard.
+    Handles secure, tenant-aware GET requests to query data from DynamoDB.
     """
     print(f"Received event: {event}")
     
-    # Extract query string parameters
-    params = event.get("queryStringParameters", {})
-    tenant_id = params.get("tenant_id", "default-tenant")
-    topic = params.get("topic", "general")
-
-    if not all([tenant_id, topic]):
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "tenant_id and topic are required query parameters."})
-        }
-
     try:
+        # --- NEW: Get tenant_id securely from the authorizer's claims ---
+        claims = event['requestContext']['authorizer']['jwt']['claims']
+        # Custom attributes in Cognito are prefixed with 'custom:'
+        tenant_id = claims['custom:tenant_id']
+        
+        # We still get the topic from the query string
+        params = event.get("queryStringParameters", {})
+        topic = params.get("topic")
+
+        if not topic:
+            return {"statusCode": 400, "body": json.dumps({"error": "The 'topic' query parameter is required."})}
+
+        print(f"Querying for tenant_id: {tenant_id} and topic: {topic}")
+
         # Use the highly efficient 'query' operation on DynamoDB
         response = table.query(
             KeyConditionExpression=Key("PK").eq(f"{tenant_id}#{topic}"),
             ScanIndexForward=False, # Sort by timestamp descending (newest first)
-            Limit=20 # Get the 20 most recent posts
+            Limit=50 # Get the 50 most recent posts
         )
         
         items = response.get("Items", [])
@@ -37,15 +40,17 @@ def lambda_handler(event, context):
         
         return {
             "statusCode": 200,
-            # Add CORS headers to allow browser access
             "headers": {
                 "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Content-Type",
-                "Access-Control-Allow-Methods": "GET"
+                "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+                "Access-Control-Allow-Methods": "GET,OPTIONS"
             },
             "body": json.dumps(items)
         }
         
+    except KeyError:
+        # This will happen if the token is missing the tenant_id claim
+        return {"statusCode": 400, "body": json.dumps({"error": "Tenant ID not found in user token."})}
     except Exception as e:
         print(f"Error querying DynamoDB: {e}")
         return {
