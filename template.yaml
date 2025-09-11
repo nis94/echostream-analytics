@@ -78,6 +78,9 @@ Resources:
       UserPoolId: !Ref UserPool
       ClientName: EchoStream-WebClient
       GenerateSecret: false # Not needed for a public web client
+      ExplicitAuthFlows:
+        - USER_PASSWORD_AUTH
+        - REFRESH_TOKEN_AUTH
 
   # ------------------------------------------------------------
   # Kinesis Data Stream
