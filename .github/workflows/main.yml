@@ -40,3 +40,40 @@ jobs:
 
       - name: Deploy SAM Application
         run: sam deploy --stack-name echostream-prod --region us-east-1 --capabilities CAPABILITY_IAM --resolve-s3 --no-confirm-changeset --no-fail-on-empty-changeset
+  
+  deploy-frontend:
+    needs: deploy # This job runs only after the 'deploy' job succeeds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1 # <-- Make sure this matches your deploy region
+
+      - name: Fetch Stack Outputs
+        id: outputs
+        run: |
+          STACK_OUTPUTS=$(aws cloudformation describe-stacks --stack-name echostream-prod --query "Stacks[0].Outputs" --output json)
+          echo "USER_POOL_ID=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey=="UserPoolId") | .OutputValue')" >> $GITHUB_OUTPUT
+          echo "CLIENT_ID=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey=="UserPoolClientId") | .OutputValue')" >> $GITHUB_OUTPUT
+          echo "API_URL=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey=="HttpApiUrl") | .OutputValue')" >> $GITHUB_OUTPUT
+          echo "FRONTEND_BUCKET=$(aws cloudformation describe-stack-resource --stack-name echostream-prod --logical-id FrontendBucket --query "StackResourceDetail.PhysicalResourceId" --output text)" >> $GITHUB_OUTPUT
+
+      - name: Generate Config File from Template
+        run: |
+          # Copy the template to the real config file
+          cp frontend/config.template.js frontend/config.js
+          # Replace placeholders with actual values from the stack outputs
+          sed -i "s|__USER_POOL_ID__|${{ steps.outputs.outputs.USER_POOL_ID }}|g" frontend/config.js
+          sed -i "s|__CLIENT_ID__|${{ steps.outputs.outputs.CLIENT_ID }}|g" frontend/config.js
+          sed -i "s|__API_URL__|${{ steps.outputs.outputs.API_URL }}|g" frontend/config.js
+          sed -i "s|__REGION__|${{ env.AWS_REGION }}|g" frontend/config.js
+
+      - name: Deploy Frontend Assets to S3
+        run: |
+          aws s3 sync frontend/ s3://${{ steps.outputs.outputs.FRONTEND_BUCKET }} --exclude "app.py" --exclude "*.template.js"

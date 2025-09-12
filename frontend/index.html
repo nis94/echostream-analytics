@@ -4,96 +4,181 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EchoStream Analytics</title>
+    <script src="config.js"></script>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.7.16.min.js"></script>
+    <script src="https://rawgit.com/aws/amazon-cognito-identity-js/master/dist/aws-cognito-sdk.min.js"></script>
+    <script src="https://rawgit.com/aws/amazon-cognito-identity-js/master/dist/amazon-cognito-identity.min.js"></script>
     <style>
-        body { font-family: sans-serif; background-color: #f4f4f9; color: #333; margin: 2em; }
+        body { font-family: sans-serif; background-color: #f4f4f9; color: #333; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         h1, h2 { color: #0d1b2a; }
-        #container { background-color: white; padding: 2em; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        input { padding: 8px; margin-right: 10px; border: 1px solid #ddd; border-radius: 4px; }
-        button { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        input { width: calc(100% - 20px); padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { width: 100%; padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
         button:hover { background-color: #0056b3; }
+        #container { width: 100%; max-width: 800px; background-color: white; padding: 2em; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        #login-view, #dashboard-view { display: none; } /* Hide both by default */
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
         th { background-color: #f7f7f7; }
+        #error, #info { margin-top: 1em; }
         #error { color: red; }
         #info { color: #0056b3; }
+        .logout-button { background-color: #6c757d; margin-top: 1em; }
+        .logout-button:hover { background-color: #5a6268; }
     </style>
 </head>
 <body>
     <div id="container">
-        <h1>🌊 EchoStream Analytics</h1>
-        <p>A dashboard to display real-time social media sentiment.</p>
-        
-        <h2>Query Parameters</h2>
-        <input type="text" id="tenant_id" value="tenant-456" placeholder="Tenant ID">
-        <input type="text" id="topic" value="mock-data" placeholder="Topic">
-        <button onclick="fetchData()">Fetch Data</button>
-        
-        <p id="info"></p>
-        <p id="error"></p>
+        <div id="login-view">
+            <h1>🌊 Welcome to EchoStream</h1>
+            <h2>Please Sign In</h2>
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button onclick="app.login()">Login</button>
+            <p id="login-error"></p>
+        </div>
 
-        <h2>Results</h2>
-        <table id="results-table">
-            <thead>
-                <tr id="table-header"></tr>
-            </thead>
-            <tbody id="table-body"></tbody>
-        </table>
+        <div id="dashboard-view">
+            <h1 id="welcome-message"></h1>
+            <p>Query for real-time sentiment data for your configured topics.</p>
+            
+            <input type="text" id="topic" placeholder="Topic (e.g., sports)">
+            <button onclick="app.fetchData()">Fetch Data</button>
+            <p id="info"></p>
+            <p id="error"></p>
+
+            <h2>Results</h2>
+            <table id="results-table">
+                <thead><tr id="table-header"></tr></thead>
+                <tbody id="table-body"></tbody>
+            </table>
+            <button class="logout-button" onclick="app.logout()">Logout</button>
+        </div>
     </div>
 
     <script>
-        // IMPORTANT: Replace with your API's Invoke URL
-        const API_INVOKE_URL = "https://qze6bnym65.execute-api.us-east-1.amazonaws.com";
+        const app = {
+            // --- CONFIGURATION ---
+            config: {
+                USER_POOL_ID: window.APP_CONFIG.UserPoolId,
+                CLIENT_ID: window.APP_CONFIG.ClientId,
+                API_URL: window.APP_CONFIG.ApiUrl,
+                REGION: window.APP_CONFIG.Region
+            },
 
-        async function fetchData() {
-            const tenantId = document.getElementById('tenant_id').value;
-            const topic = document.getElementById('topic').value;
-            const info = document.getElementById('info');
-            const error = document.getElementById('error');
-            const tableHeader = document.getElementById('table-header');
-            const tableBody = document.getElementById('table-body');
+            userPool: null,
+            cognitoUser: null,
+            idToken: null,
 
-            // Clear previous results
-            info.textContent = '';
-            error.textContent = '';
-            tableHeader.innerHTML = '';
-            tableBody.innerHTML = '';
+            init: function() {
+                this.userPool = new AmazonCognitoIdentity.CognitoUserPool({
+                    UserPoolId: this.config.USER_POOL_ID,
+                    ClientId: this.config.CLIENT_ID
+                });
 
-            if (!tenantId || !topic) {
-                error.textContent = 'Tenant ID and Topic are required.';
-                return;
-            }
+                this.cognitoUser = this.userPool.getCurrentUser();
 
-            const queryUrl = `${API_INVOKE_URL}/query?tenant_id=${tenantId}&topic=${topic}`;
-            info.textContent = `Fetching data from: ${queryUrl}`;
-
-            try {
-                const response = await fetch(queryUrl);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                if (this.cognitoUser != null) {
+                    this.cognitoUser.getSession((err, session) => {
+                        if (err) {
+                            console.error(err);
+                            this.showLogin();
+                            return;
+                        }
+                        if (session.isValid()) {
+                            this.idToken = session.getIdToken().getJwtToken();
+                            this.showDashboard();
+                        } else {
+                            this.showLogin();
+                        }
+                    });
+                } else {
+                    this.showLogin();
                 }
-                const data = await response.json();
+            },
 
-                if (data.length === 0) {
-                    info.textContent = 'Query returned no results.';
-                    return;
+            login: function() {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const loginError = document.getElementById('login-error');
+                loginError.textContent = '';
+
+                const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({
+                    Username: username,
+                    Password: password,
+                });
+
+                const userData = { Username: username, Pool: this.userPool };
+                this.cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+
+                this.cognitoUser.authenticateUser(authenticationDetails, {
+                    onSuccess: (result) => {
+                        this.idToken = result.getIdToken().getJwtToken();
+                        this.showDashboard();
+                    },
+                    onFailure: (err) => {
+                        console.error(err);
+                        loginError.textContent = err.message || JSON.stringify(err);
+                    },
+                });
+            },
+
+            logout: function() {
+                if (this.cognitoUser) {
+                    this.cognitoUser.signOut();
                 }
+                this.showLogin();
+            },
 
-                // Create table headers from the keys of the first object
-                const headers = Object.keys(data[0]);
-                tableHeader.innerHTML = headers.map(h => `<th>${h}</th>`).join('');
-
-                // Create table rows
-                tableBody.innerHTML = data.map(row => {
-                    return `<tr>${headers.map(h => `<td>${row[h]}</td>`).join('')}</tr>`;
-                }).join('');
+            fetchData: async function() {
+                const topic = document.getElementById('topic').value;
+                const info = document.getElementById('info');
+                const error = document.getElementById('error');
+                const tableHeader = document.getElementById('table-header');
+                const tableBody = document.getElementById('table-body');
                 
-                info.textContent = `Successfully fetched ${data.length} posts.`;
+                tableHeader.innerHTML = '';
+                tableBody.innerHTML = '';
 
-            } catch (e) {
-                console.error('Fetch error:', e);
-                error.textContent = `An error occurred: ${e.message}`;
+                const queryUrl = `${this.config.API_URL}/query?topic=${topic}`;
+                info.textContent = 'Fetching data...';
+
+                try {
+                    const response = await fetch(queryUrl, {
+                        headers: { 'Authorization': this.idToken }
+                    });
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    
+                    const data = await response.json();
+                    if (data.length === 0) {
+                        info.textContent = 'Query returned no results.';
+                        return;
+                    }
+                    const headers = Object.keys(data[0]);
+                    tableHeader.innerHTML = headers.map(h => `<th>${h}</th>`).join('');
+                    tableBody.innerHTML = data.map(row => `<tr>${headers.map(h => `<td>${JSON.stringify(row[h])}</td>`).join('')}</tr>`).join('');
+                    info.textContent = `Successfully fetched ${data.length} posts.`;
+                } catch (e) {
+                    console.error('Fetch error:', e);
+                    error.textContent = `An error occurred: ${e.message}`;
+                }
+            },
+            
+            showLogin: function() {
+                document.getElementById('login-view').style.display = 'block';
+                document.getElementById('dashboard-view').style.display = 'none';
+            },
+
+            showDashboard: function() {
+                document.getElementById('login-view').style.display = 'none';
+                document.getElementById('dashboard-view').style.display = 'block';
+                const claims = JSON.parse(atob(this.idToken.split('.')[1]));
+                document.getElementById('welcome-message').textContent = `Welcome, ${claims.email}`;
             }
-        }
+        };
+
+        window.onload = function() {
+            app.init();
+        };
     </script>
 </body>
 </html>
