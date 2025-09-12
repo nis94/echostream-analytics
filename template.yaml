@@ -79,6 +79,7 @@ Resources:
       ClientName: EchoStream-WebClient
       GenerateSecret: false # Not needed for a public web client
       ExplicitAuthFlows:
+        - ADMIN_NO_SRP_AUTH
         - ALLOW_USER_PASSWORD_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
 

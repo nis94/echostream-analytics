@@ -1,3 +1,6 @@
 .aws-sam/
 __pycache__/
 *.pyc
+
+# Local development files and secrets
+local_commands.sh
