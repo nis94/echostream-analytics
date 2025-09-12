@@ -1,7 +1,6 @@
 #!/bin/bash
 #
 # EchoStream v2.0 - Post-Deployment Setup Script
-# In order to run it run this comman from terminal: ./setup_stack.sh
 #
 # This script automates the manual setup tasks required after a clean
 # deployment of the CloudFormation stack.
@@ -9,10 +8,13 @@
 
 # Exit immediately if a command exits with a non-zero status.
 set -e
+# Disable the AWS CLI pager
+export AWS_PAGER=""
 
 # --- Configuration ---
 STACK_NAME="echostream-prod"
-REGION="us-east-1"
+# Use the region defined in the AWS CLI profile
+REGION=$(aws configure get region)
 TEST_USERNAME="RickSanchez"
 
 # Check if .env file exists and source it
@@ -94,7 +96,7 @@ echo "✅ Test user '$TEST_USERNAME' created and assigned to a tenant."
 
 # --- Step 5: Trigger Producer Lambda to Seed Data ---
 echo "--- [5/5] Invoking Producer Lambda to seed initial data ---"
-aws lambda invoke --function-name $PRODUCER_LAMBDA_NAME --region $REGION response.json > /dev/null
+aws lambda invoke --function-name $PRODUCER_LAMBDA_NAME --region $REGION /dev/null
 echo "✅ Producer Lambda invoked. Data should be flowing into the pipeline."
 
 echo "\n--- SETUP COMPLETE ---"
