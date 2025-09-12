@@ -43,9 +43,27 @@ echo "✅ Successfully fetched stack outputs."
 
 # --- Step 2: Update Reddit Secret in Secrets Manager ---
 echo "--- [2/5] Updating Reddit Credentials in Secrets Manager ---"
-SECRET_STRING="{\"REDDIT_CLIENT_ID\": \"$REDDIT_CLIENT_ID\", \"REDDIT_CLIENT_SECRET\": \"$REDDIT_CLIENT_SECRET\", \"REDDIT_USER_AGENT\": \"$REDDIT_USER_AGENT\", \"REDDIT_USERNAME\": \"$REDDIT_USERNAME\", \"REDDIT_PASSWORD\": \"$REDDIT_PASSWORD\"}"
-aws secretsmanager update-secret --secret-id $SECRET_ARN --secret-string "$SECRET_STRING" --region $REGION
-echo "✅ Secret updated successfully."
+
+# Use a temporary file and heredoc for robust JSON formatting
+SECRET_JSON_FILE=$(mktemp)
+cat > $SECRET_JSON_FILE << EOL
+{
+    "REDDIT_CLIENT_ID": "$REDDIT_CLIENT_ID",
+    "REDDIT_CLIENT_SECRET": "$REDDIT_CLIENT_SECRET",
+    "REDDIT_USER_AGENT": "$REDDIT_USER_AGENT",
+    "REDDIT_USERNAME": "$REDDIT_USERNAME",
+    "REDDIT_PASSWORD": "$REDDIT_PASSWORD"
+}
+EOL
+
+aws secretsmanager update-secret --secret-id $SECRET_ARN --secret-string file://$SECRET_JSON_FILE --region $REGION
+rm $SECRET_JSON_FILE # Clean up the temp file
+
+# Add a short sleep to allow for propagation
+echo "Secret updated. Waiting 5 seconds for propagation..."
+sleep 5
+
+echo "✅ Secret updated successfully and is now available."
 
 
 # --- Step 3: Create Tenant Data in DynamoDB ---
@@ -99,5 +117,6 @@ echo "--- [5/5] Invoking Producer Lambda to seed initial data ---"
 aws lambda invoke --function-name $PRODUCER_LAMBDA_NAME --region $REGION /dev/null
 echo "✅ Producer Lambda invoked. Data should be flowing into the pipeline."
 
-echo "\n--- SETUP COMPLETE ---"
+echo "                      "
+echo "--- SETUP COMPLETE ---"
 echo "You can now test the query API or the frontend."
