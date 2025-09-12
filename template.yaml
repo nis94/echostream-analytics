@@ -79,7 +79,7 @@ Resources:
       ClientName: EchoStream-WebClient
       GenerateSecret: false # Not needed for a public web client
       ExplicitAuthFlows:
-        - ADMIN_NO_SRP_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
         - ALLOW_USER_PASSWORD_AUTH
         - ALLOW_REFRESH_TOKEN_AUTH
 
@@ -340,3 +340,23 @@ Resources:
             Cookies:
               Forward: none
         PriceClass: PriceClass_100 # Use only North America and Europe edge locations for cost savings
+
+Outputs:
+  HttpApiUrl:
+    Description: "The invoke URL for the HTTP API"
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  UserPoolId:
+    Description: "The ID of the Cognito User Pool"
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Description: "The ID of the Cognito User Pool Client"
+    Value: !Ref UserPoolClient
+  ProducerLambdaName:
+    Description: "The name of the Producer Lambda Function"
+    Value: !Ref ProducerLambdaFunction
+  RedditCredentialsSecretArn:
+    Description: "The ARN of the Reddit credentials secret"
+    Value: !Ref RedditCredentialsSecret
+  TenantsTableName:
+    Description: "The name of the Tenants DynamoDB table"
+    Value: !Ref TenantsTable
