@@ -160,19 +160,19 @@ Resources:
   ProducerLambdaLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${ProducerLambdaFunction}"
+      LogGroupName: /aws/lambda/EchoStream-Producer
       RetentionInDays: 7
 
   ProcessorLambdaLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${ProcessorLambdaFunction}"
+      LogGroupName: /aws/lambda/EchoStream-Processor
       RetentionInDays: 7
 
   QueryLambdaLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub "/aws/lambda/${QueryLambdaFunction}"
+      LogGroupName: /aws/lambda/EchoStream-Query
       RetentionInDays: 7
 
   # ------------------------------------------------------------
