@@ -54,7 +54,7 @@ Resources:
         Authorizers:
           JwtAuthorizer:
             JwtConfiguration:
-              issuer: !Sub "https://cognito-idp.${AWS_REGION}.amazonaws.com/${UserPool}"
+              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
               audience:
                 - !Ref UserPoolClient
             IdentitySource: "$request.header.Authorization"
