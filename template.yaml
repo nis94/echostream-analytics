@@ -361,3 +361,6 @@ Outputs:
   TenantsTableName:
     Description: "The name of the Tenants DynamoDB table"
     Value: !Ref TenantsTable
+  FrontendBucketName:
+    Description: "The name of the S3 bucket for the frontend website"
+    Value: !Ref FrontendBucket

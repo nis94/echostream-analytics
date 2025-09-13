@@ -62,7 +62,7 @@ jobs:
           echo "USER_POOL_ID=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey=="UserPoolId") | .OutputValue')" >> $GITHUB_OUTPUT
           echo "CLIENT_ID=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey=="UserPoolClientId") | .OutputValue')" >> $GITHUB_OUTPUT
           echo "API_URL=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey=="HttpApiUrl") | .OutputValue')" >> $GITHUB_OUTPUT
-          echo "FRONTEND_BUCKET=$(aws cloudformation describe-stack-resource --stack-name echostream-prod --logical-id FrontendBucket --query "StackResourceDetail.PhysicalResourceId" --output text)" >> $GITHUB_OUTPUT
+          echo "FRONTEND_BUCKET=$(echo $STACK_OUTPUTS | jq -r '.[] | select(.OutputKey=="FrontendBucketName") | .OutputValue')" >> $GITHUB_OUTPUT
 
       - name: Generate Config File from Template
         run: |
