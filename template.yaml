@@ -40,11 +40,21 @@ Resources:
   HttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - "*" # In production, you'd lock this to your CloudFront URL
+        AllowHeaders:
+          - "Authorization"
+          - "Content-Type"
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
       Auth:
         Authorizers:
           JwtAuthorizer:
             JwtConfiguration:
-              issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+              issuer: !Sub "https://cognito-idp.${AWS_REGION}.amazonaws.com/${UserPool}"
               audience:
                 - !Ref UserPoolClient
             IdentitySource: "$request.header.Authorization"

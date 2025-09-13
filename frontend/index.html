@@ -9,62 +9,35 @@
     <script src="https://rawgit.com/aws/amazon-cognito-identity-js/master/dist/aws-cognito-sdk.min.js"></script>
     <script src="https://rawgit.com/aws/amazon-cognito-identity-js/master/dist/amazon-cognito-identity.min.js"></script>
     <style>
-        body { font-family: sans-serif; background-color: #f4f4f9; color: #333; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        body { font-family: sans-serif; background-color: #f4f4f9; color: #333; margin: 0; }
+        .header { background-color: #0d1b2a; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 1.2em; margin: 0; }
+        .header button { padding: 5px 10px; font-size: 0.9em; background-color: #6c757d; }
+        .container { padding: 2em; max-width: 900px; margin: 20px auto; background-color: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .login-container { max-width: 400px; }
         h1, h2 { color: #0d1b2a; }
-        input { width: calc(100% - 20px); padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        input { width: calc(100% - 22px); padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; }
         button { width: 100%; padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
         button:hover { background-color: #0056b3; }
-        #container { width: 100%; max-width: 800px; background-color: white; padding: 2em; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        #login-view, #dashboard-view { display: none; } /* Hide both by default */
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
         th { background-color: #f7f7f7; }
         #error, #info { margin-top: 1em; }
-        #error { color: red; }
+        #error { color: red; font-weight: bold; }
         #info { color: #0056b3; }
-        .logout-button { background-color: #6c757d; margin-top: 1em; }
-        .logout-button:hover { background-color: #5a6268; }
     </style>
 </head>
 <body>
-    <div id="container">
-        <div id="login-view">
-            <h1>🌊 Welcome to EchoStream</h1>
-            <h2>Please Sign In</h2>
-            <input type="text" id="username" placeholder="Username">
-            <input type="password" id="password" placeholder="Password">
-            <button onclick="app.login()">Login</button>
-            <p id="login-error"></p>
-        </div>
-
-        <div id="dashboard-view">
-            <h1 id="welcome-message"></h1>
-            <p>Query for real-time sentiment data for your configured topics.</p>
-            
-            <input type="text" id="topic" placeholder="Topic (e.g., sports)">
-            <button onclick="app.fetchData()">Fetch Data</button>
-            <p id="info"></p>
-            <p id="error"></p>
-
-            <h2>Results</h2>
-            <table id="results-table">
-                <thead><tr id="table-header"></tr></thead>
-                <tbody id="table-body"></tbody>
-            </table>
-            <button class="logout-button" onclick="app.logout()">Logout</button>
-        </div>
-    </div>
+    <div id="app-root"></div>
 
     <script>
         const app = {
-            // --- CONFIGURATION ---
             config: {
                 USER_POOL_ID: window.APP_CONFIG.UserPoolId,
                 CLIENT_ID: window.APP_CONFIG.ClientId,
                 API_URL: window.APP_CONFIG.ApiUrl,
                 REGION: window.APP_CONFIG.Region
             },
-
             userPool: null,
             cognitoUser: null,
             idToken: null,
@@ -74,61 +47,81 @@
                     UserPoolId: this.config.USER_POOL_ID,
                     ClientId: this.config.CLIENT_ID
                 });
-
                 this.cognitoUser = this.userPool.getCurrentUser();
-
                 if (this.cognitoUser != null) {
                     this.cognitoUser.getSession((err, session) => {
-                        if (err) {
-                            console.error(err);
-                            this.showLogin();
-                            return;
-                        }
-                        if (session.isValid()) {
+                        if (session && session.isValid()) {
                             this.idToken = session.getIdToken().getJwtToken();
-                            this.showDashboard();
+                            this.renderDashboard();
                         } else {
-                            this.showLogin();
+                            this.renderLogin();
                         }
                     });
                 } else {
-                    this.showLogin();
+                    this.renderLogin();
                 }
             },
 
+            renderLogin: function() {
+                document.getElementById('app-root').innerHTML = `
+                    <div class="container login-container">
+                        <h1>🌊 Welcome to EchoStream</h1>
+                        <h2>Please Sign In</h2>
+                        <input type="text" id="username" placeholder="Username">
+                        <input type="password" id="password" placeholder="Password">
+                        <button onclick="app.login()">Login</button>
+                        <p id="login-error"></p>
+                    </div>`;
+            },
+
+            renderDashboard: function() {
+                const claims = JSON.parse(atob(this.idToken.split('.')[1]));
+                const username = claims['cognito:username'];
+                document.getElementById('app-root').innerHTML = `
+                    <div class="header">
+                        <h1>Welcome, ${username}</h1>
+                        <button onclick="app.logout()">Logout</button>
+                    </div>
+                    <div class="container">
+                        <h2>Query Your Data</h2>
+                        <p>Query for real-time sentiment data for your configured topics.</p>
+                        <input type="text" id="topic" placeholder="Topic (e.g., sports)">
+                        <button onclick="app.fetchData()">Fetch Data</button>
+                        <p id="info"></p>
+                        <p id="error"></p>
+                        <h2>Results</h2>
+                        <table id="results-table">
+                            <thead><tr id="table-header"></tr></thead>
+                            <tbody id="table-body"></tbody>
+                        </table>
+                    </div>`;
+            },
+            
+            login: function() { /* ... unchanged ... */ },
+            logout: function() { /* ... unchanged ... */ },
+            fetchData: async function() { /* ... unchanged, but logic fixes below ... */ },
+
+            // Re-pasting methods with updates to keep it clean
             login: function() {
                 const username = document.getElementById('username').value;
                 const password = document.getElementById('password').value;
                 const loginError = document.getElementById('login-error');
                 loginError.textContent = '';
-
-                const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({
-                    Username: username,
-                    Password: password,
-                });
-
+                const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails({ Username: username, Password: password });
                 const userData = { Username: username, Pool: this.userPool };
                 this.cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
-
                 this.cognitoUser.authenticateUser(authenticationDetails, {
                     onSuccess: (result) => {
                         this.idToken = result.getIdToken().getJwtToken();
-                        this.showDashboard();
+                        this.renderDashboard();
                     },
-                    onFailure: (err) => {
-                        console.error(err);
-                        loginError.textContent = err.message || JSON.stringify(err);
-                    },
+                    onFailure: (err) => { loginError.textContent = err.message || JSON.stringify(err); },
                 });
             },
-
             logout: function() {
-                if (this.cognitoUser) {
-                    this.cognitoUser.signOut();
-                }
-                this.showLogin();
+                if (this.cognitoUser) { this.cognitoUser.signOut(); }
+                this.renderLogin();
             },
-
             fetchData: async function() {
                 const topic = document.getElementById('topic').value;
                 const info = document.getElementById('info');
@@ -136,19 +129,15 @@
                 const tableHeader = document.getElementById('table-header');
                 const tableBody = document.getElementById('table-body');
                 
-                tableHeader.innerHTML = '';
-                tableBody.innerHTML = '';
-
-                const queryUrl = `${this.config.API_URL}/query?topic=${topic}`;
+                info.textContent = ''; error.textContent = ''; tableHeader.innerHTML = ''; tableBody.innerHTML = '';
                 info.textContent = 'Fetching data...';
 
                 try {
-                    const response = await fetch(queryUrl, {
-                        headers: { 'Authorization': this.idToken }
-                    });
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const response = await fetch(`${this.config.API_URL}/query?topic=${topic}`, { headers: { 'Authorization': this.idToken } });
+                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                     
                     const data = await response.json();
+                    
                     if (data.length === 0) {
                         info.textContent = 'Query returned no results.';
                         return;
@@ -156,29 +145,14 @@
                     const headers = Object.keys(data[0]);
                     tableHeader.innerHTML = headers.map(h => `<th>${h}</th>`).join('');
                     tableBody.innerHTML = data.map(row => `<tr>${headers.map(h => `<td>${JSON.stringify(row[h])}</td>`).join('')}</tr>`).join('');
-                    info.textContent = `Successfully fetched ${data.length} posts.`;
+                    info.textContent = `Successfully fetched ${data.length} posts.`; // FIX: Update info text on success
                 } catch (e) {
-                    console.error('Fetch error:', e);
                     error.textContent = `An error occurred: ${e.message}`;
+                    info.textContent = ''; // FIX: Clear info text on error
                 }
             },
-            
-            showLogin: function() {
-                document.getElementById('login-view').style.display = 'block';
-                document.getElementById('dashboard-view').style.display = 'none';
-            },
-
-            showDashboard: function() {
-                document.getElementById('login-view').style.display = 'none';
-                document.getElementById('dashboard-view').style.display = 'block';
-                const claims = JSON.parse(atob(this.idToken.split('.')[1]));
-                document.getElementById('welcome-message').textContent = `Welcome, ${claims.email}`;
-            }
         };
-
-        window.onload = function() {
-            app.init();
-        };
+        window.onload = function() { app.init(); };
     </script>
 </body>
 </html>
