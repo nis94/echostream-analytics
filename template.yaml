@@ -124,7 +124,7 @@ Resources:
   DataTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: EchoStream_DataTable
+      TableName: EchoStream-DataTable
       AttributeDefinitions:
         - AttributeName: "PK"
           AttributeType: "S"
@@ -145,7 +145,7 @@ Resources:
   TenantsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: EchoStream_TenantsTable
+      TableName: EchoStream-TenantsTable
       AttributeDefinitions:
         - AttributeName: "tenant_id"
           AttributeType: "S"
@@ -155,10 +155,32 @@ Resources:
       BillingMode: PAY_PER_REQUEST
 
   # ------------------------------------------------------------
+  # CloudWatch Log Groups with Retention
+  # ------------------------------------------------------------
+  ProducerLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProducerLambdaFunction}"
+      RetentionInDays: 7
+
+  ProcessorLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProcessorLambdaFunction}"
+      RetentionInDays: 7
+
+  QueryLambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${QueryLambdaFunction}"
+      RetentionInDays: 7
+
+  # ------------------------------------------------------------
   # Lambda Functions and Roles
   # ------------------------------------------------------------
   ProducerLambdaFunction:
     Type: AWS::Serverless::Function
+    DependsOn: ProducerLambdaLogGroup
     Properties:
       FunctionName: EchoStream-Producer
       CodeUri: producer/
@@ -204,6 +226,7 @@ Resources:
 
   ProcessorLambdaFunction:
     Type: AWS::Serverless::Function
+    DependsOn: ProcessorLambdaLogGroup
     Properties:
       FunctionName: EchoStream-Processor
       CodeUri: processor/
@@ -259,6 +282,7 @@ Resources:
 
   QueryLambdaFunction:
     Type: AWS::Serverless::Function
+    DependsOn: QueryLambdaLogGroup
     Properties:
       FunctionName: EchoStream-Query
       CodeUri: query/
