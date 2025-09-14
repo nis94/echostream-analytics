@@ -44,20 +44,22 @@ echo "✅ Successfully fetched stack outputs."
 # --- Step 2: Update Reddit Secret in Secrets Manager ---
 echo "--- [2/5] Updating Reddit Credentials in Secrets Manager ---"
 
-# Use a temporary file and heredoc for robust JSON formatting
-SECRET_JSON_FILE=$(mktemp)
-cat > $SECRET_JSON_FILE << EOL
-{
-    "REDDIT_CLIENT_ID": "$REDDIT_CLIENT_ID",
-    "REDDIT_CLIENT_SECRET": "$REDDIT_CLIENT_SECRET",
-    "REDDIT_USER_AGENT": "$REDDIT_USER_AGENT",
-    "REDDIT_USERNAME": "$REDDIT_USERNAME",
-    "REDDIT_PASSWORD": "$REDDIT_PASSWORD"
-}
-EOL
+# Use jq to safely build the JSON string, preventing shell expansion issues
+SECRET_STRING=$(jq -n \
+                  --arg client_id "$REDDIT_CLIENT_ID" \
+                  --arg client_secret "$REDDIT_CLIENT_SECRET" \
+                  --arg user_agent "$REDDIT_USER_AGENT" \
+                  --arg username "$REDDIT_USERNAME" \
+                  --arg password "$REDDIT_PASSWORD" \
+                  '{
+                    "REDDIT_CLIENT_ID": $client_id,
+                    "REDDIT_CLIENT_SECRET": $client_secret,
+                    "REDDIT_USER_AGENT": $user_agent,
+                    "REDDIT_USERNAME": $username,
+                    "REDDIT_PASSWORD": $password
+                   }')
 
-aws secretsmanager update-secret --secret-id $SECRET_ARN --secret-string file://$SECRET_JSON_FILE --region $REGION
-rm $SECRET_JSON_FILE # Clean up the temp file
+aws secretsmanager update-secret --secret-id $SECRET_ARN --secret-string "$SECRET_STRING" --region $REGION
 
 # Add a short sleep to allow for propagation
 echo "Secret updated. Waiting 5 seconds for propagation..."
