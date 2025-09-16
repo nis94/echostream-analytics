@@ -409,6 +409,7 @@ Resources:
                 Action:
                   - dynamodb:Scan
                   - dynamodb:Query
+                  - dynamodb:UpdateItem
                 Resource:
                   - !GetAtt DataTable.Arn
                   - !GetAtt TenantsTable.Arn
