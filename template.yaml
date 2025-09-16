@@ -422,9 +422,10 @@ Resources:
   SummarizerSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Name: EchoStream-Summary-Schedule
-      Description: "Triggers the Summarizer Lambda every 4 hours."
-      ScheduleExpression: "rate(4 hour)"
+      Name: EchoStream-Daily-Summary-Schedule # Updated name
+      Description: "Triggers the Summarizer Lambda once every day."
+      # --- CHANGE THIS LINE ---
+      ScheduleExpression: "cron(0 5 * * ? *)" # Runs every day at 5:00 AM UTC
       FlexibleTimeWindow:
         Mode: "OFF"
       State: "ENABLED"
