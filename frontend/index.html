@@ -59,7 +59,7 @@
             renderLogin: function() { /* ... unchanged ... */ },
             renderDashboard: function() {
                 const claims = JSON.parse(atob(this.idToken.split('.')[1]));
-                const username = claims['cognito:username']; // FIX: Use username
+                const username = claims['cognito:username'];
                 document.getElementById('app-root').innerHTML = `
                     <div class="header">
                         <h1>Welcome, ${username}</h1>
@@ -108,7 +108,6 @@
                     tableBody.innerHTML = data.map(row => {
                         const cells = headers.map(h => {
                             if (h === 'text') {
-                                // FIX: Truncate long text and add a tooltip
                                 return `<td class="truncate" title="${row[h]}">${row[h]}</td>`;
                             }
                             return `<td>${JSON.stringify(row[h])}</td>`;
@@ -118,7 +117,7 @@
                     info.textContent = `Successfully fetched ${data.length} posts.`;
                 } catch (e) {
                     error.textContent = `An error occurred: ${e.message}`;
-                    info.textContent = ''; // FIX: Clear info text on error
+                    info.textContent = '';
                 }
             },
             

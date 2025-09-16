@@ -376,6 +376,80 @@ Resources:
               Forward: none
         PriceClass: PriceClass_100 # Use only North America and Europe edge locations for cost savings
 
+  SummarizerLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EchoStream-Summarizer
+      CodeUri: summarizer/
+      Handler: app.lambda_handler
+      Role: !GetAtt SummarizerLambdaRole.Arn
+      Timeout: 120 # Give it more time for AI processing
+      Environment:
+        Variables:
+          DATA_TABLE: !Ref DataTable
+          TENANTS_TABLE: !Ref TenantsTable
+
+  SummarizerLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [lambda.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: EchoStreamSummarizerPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                Resource:
+                  - !GetAtt DataTable.Arn
+                  - !GetAtt TenantsTable.Arn
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                # This ARN is for the Claude 3 Sonnet model.
+                Resource: "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0"
+
+  SummarizerSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: EchoStream-Hourly-Summary-Schedule
+      Description: "Triggers the Summarizer Lambda every hour."
+      ScheduleExpression: "rate(1 hour)"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      State: "ENABLED"
+      Target:
+        Arn: !GetAtt SummarizerLambdaFunction.Arn
+        RoleArn: !GetAtt SummarizerScheduleRole.Arn
+
+  SummarizerScheduleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [scheduler.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      Policies:
+        - PolicyName: EchoStreamSchedulerInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !GetAtt SummarizerLambdaFunction.Arn
+
 Outputs:
   HttpApiUrl:
     Description: "The invoke URL for the HTTP API"
