@@ -423,7 +423,7 @@ Resources:
     Properties:
       Name: EchoStream-Hourly-Summary-Schedule
       Description: "Triggers the Summarizer Lambda every hour."
-      ScheduleExpression: "rate(1 hour)"
+      ScheduleExpression: "rate(4 hour)"
       FlexibleTimeWindow:
         Mode: "OFF"
       State: "ENABLED"
