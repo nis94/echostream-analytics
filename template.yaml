@@ -101,7 +101,8 @@ Resources:
     Type: AWS::Kinesis::Stream
     Properties:
       Name: EchoStream-DataStream
-      ShardCount: 1 # Start with 1 shard to stay in the free tier and control costs
+      StreamModeDetails:
+        StreamMode: ON_DEMAND
 
   # ------------------------------------------------------------
   # S3 Data Lake Bucket
@@ -223,6 +224,38 @@ Resources:
                     Action:
                       - dynamodb:Scan
                     Resource: !GetAtt TenantsTable.Arn
+
+  ProducerSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: EchoStream-15-Minute-Poll-Schedule
+      Description: "Triggers the Producer Lambda every 15 minutes to fetch new data."
+      ScheduleExpression: "rate(15 minutes)"
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      State: "ENABLED"
+      Target:
+        Arn: !GetAtt ProducerLambdaFunction.Arn
+        RoleArn: !GetAtt ProducerScheduleRole.Arn
+
+  ProducerScheduleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [scheduler.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      Policies:
+        - PolicyName: EchoStreamProducerSchedulerInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !GetAtt ProducerLambdaFunction.Arn
 
   ProcessorLambdaFunction:
     Type: AWS::Serverless::Function

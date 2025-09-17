@@ -44,20 +44,23 @@ echo "✅ Successfully fetched stack outputs."
 # --- Step 2: Update Reddit Secret in Secrets Manager ---
 echo "--- [2/5] Updating Reddit Credentials in Secrets Manager ---"
 
-# Use a temporary file and heredoc for robust JSON formatting. This is the most
-SECRET_JSON_FILE=$(mktemp)
-cat > $SECRET_JSON_FILE << EOL
-{
-    "REDDIT_CLIENT_ID": "$REDDIT_CLIENT_ID",
-    "REDDIT_CLIENT_SECRET": "$REDDIT_CLIENT_SECRET",
-    "REDDIT_USER_AGENT": "$REDDIT_USER_AGENT",
-    "REDDIT_USERNAME": "$REDDIT_USERNAME",
-    "REDDIT_PASSWORD": "$REDDIT_PASSWORD"
-}
-EOL
+# Use a Python script to safely build the JSON, bypassing shell expansion issues.
+# This is the most robust method for handling complex passwords.
+SECRET_STRING=$(python3 -c '
+import os
+import json
 
-aws secretsmanager update-secret --secret-id $SECRET_ARN --secret-string file://$SECRET_JSON_FILE --region $REGION
-rm $SECRET_JSON_FILE # Clean up the temp file
+credentials = {
+    "REDDIT_CLIENT_ID": os.environ["REDDIT_CLIENT_ID"],
+    "REDDIT_CLIENT_SECRET": os.environ["REDDIT_CLIENT_SECRET"],
+    "REDDIT_USER_AGENT": os.environ["REDDIT_USER_AGENT"],
+    "REDDIT_USERNAME": os.environ["REDDIT_USERNAME"],
+    "REDDIT_PASSWORD": os.environ["REDDIT_PASSWORD"]
+}
+print(json.dumps(credentials))
+')
+
+aws secretsmanager update-secret --secret-id $SECRET_ARN --secret-string "$SECRET_STRING" --region $REGION
 
 # Add a short sleep to allow for propagation
 echo "Secret updated. Waiting 5 seconds for propagation..."
