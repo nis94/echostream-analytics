@@ -95,14 +95,13 @@ Resources:
         - ALLOW_USER_SRP_AUTH
 
   # ------------------------------------------------------------
-  # Kinesis Data Stream
+  # SQS
   # ------------------------------------------------------------
-  DataStream:
-    Type: AWS::Kinesis::Stream
+  IngestionQueue:
+    Type: AWS::SQS::Queue
     Properties:
-      Name: EchoStream-DataStream
-      StreamModeDetails:
-        StreamMode: ON_DEMAND
+      QueueName: EchoStream-IngestionQueue
+      VisibilityTimeout: 120 # Give the processor 2 minutes to process a message
 
   # ------------------------------------------------------------
   # S3 Data Lake Bucket
@@ -190,10 +189,9 @@ Resources:
       Timeout: 30
       Environment:
         Variables:
-          STREAM_NAME: !Ref DataStream
+          QUEUE_URL: !Ref IngestionQueue
           SECRET_NAME: echostream/reddit-credentials-v1
           TENANTS_TABLE_NAME: !Ref TenantsTable
-
 
   ProducerLambdaRole:
       Type: AWS::IAM::Role
@@ -211,11 +209,10 @@ Resources:
               PolicyDocument:
                 Version: '2012-10-17'
                 Statement:
-                  - Effect: Allow # Statement for Kinesis
+                  - Effect: Allow
                     Action:
-                      - kinesis:PutRecord
-                      - kinesis:PutRecords
-                    Resource: !GetAtt DataStream.Arn
+                      - sqs:SendMessage
+                    Resource: !GetAtt IngestionQueue.Arn
                   - Effect: Allow # Statement for Secrets Manager
                     Action:
                       - secretsmanager:GetSecretValue
@@ -273,12 +270,11 @@ Resources:
           DATA_TABLE: !Ref DataTable
           SENTIMENT_ENGINE: comprehend # nltk
       Events:
-        StreamEvent:
-          Type: Kinesis
+        QueueEvent:
+          Type: SQS
           Properties:
-            Stream: !GetAtt DataStream.Arn
-            BatchSize: 100
-            StartingPosition: LATEST
+            Queue: !GetAtt IngestionQueue.Arn
+            BatchSize: 10 # Process up to 10 messages at a time
 
   ProcessorLambdaRole:
       Type: AWS::IAM::Role
@@ -305,13 +301,6 @@ Resources:
                   - Effect: Allow
                     Action: [comprehend:DetectSentiment]
                     Resource: "*"
-                  - Effect: Allow
-                    Action:
-                      - kinesis:GetRecords
-                      - kinesis:GetShardIterator
-                      - kinesis:DescribeStream
-                      - kinesis:ListShards
-                    Resource: !GetAtt DataStream.Arn
 
   QueryLambdaFunction:
     Type: AWS::Serverless::Function
@@ -455,9 +444,8 @@ Resources:
   SummarizerSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Name: EchoStream-Daily-Summary-Schedule # Updated name
+      Name: EchoStream-Daily-Summary-Schedule
       Description: "Triggers the Summarizer Lambda once every day."
-      # --- CHANGE THIS LINE ---
       ScheduleExpression: "cron(0 5 * * ? *)" # Runs every day at 5:00 AM UTC
       FlexibleTimeWindow:
         Mode: "OFF"
@@ -563,7 +551,7 @@ Resources:
     Properties:
       Name: EchoStream-Evening-Alert-Schedule
       Description: "Triggers the Alerting Lambda every day at 9 PM Israel Time."
-      ScheduleExpression: "cron(0 21 * * ? *)" # 21:00 (9:00 PM)
+      ScheduleExpression: "cron(0 21 * * ? *)" # 9:00 PM
       ScheduleExpressionTimeZone: "Asia/Jerusalem"
       FlexibleTimeWindow: { Mode: "OFF" }
       State: "ENABLED"

@@ -3,20 +3,19 @@ import json
 import boto3
 import praw
 from datetime import datetime
-from boto3.dynamodb.conditions import Key
 
 # Boto3 clients
-kinesis_client = boto3.client("kinesis")
+sqs_client = boto3.client("sqs")
 secrets_client = boto3.client("secretsmanager")
 dynamodb = boto3.resource("dynamodb")
 
 # Get configuration from environment variables
-STREAM_NAME = os.environ.get("STREAM_NAME")
+QUEUE_URL = os.environ.get("QUEUE_URL")
 SECRET_NAME = os.environ.get("SECRET_NAME")
 TENANTS_TABLE_NAME = os.environ.get("TENANTS_TABLE_NAME")
-
 tenants_table = dynamodb.Table(TENANTS_TABLE_NAME)
 
+# --- Helper Functions (unchanged) ---
 def get_reddit_credentials():
     """Fetches Reddit API credentials from AWS Secrets Manager."""
     response = secrets_client.get_secret_value(SecretId=SECRET_NAME)
@@ -25,17 +24,15 @@ def get_reddit_credentials():
 def get_active_tenants():
     """Scans the TenantsTable to find all tenants with is_active = true."""
     print("Fetching active tenants from DynamoDB...")
-    response = tenants_table.scan(
-        FilterExpression=Key('is_active').eq(True)
-    )
+    response = tenants_table.scan(FilterExpression=boto3.dynamodb.conditions.Key('is_active').eq(True))
     tenants = response.get('Items', [])
     print(f"Found {len(tenants)} active tenants.")
     return tenants
 
+# --- Main Lambda Handler (Refactored for SQS) ---
 def lambda_handler(event, context):
     """
-    Scans for active tenants, polls Reddit for each of their configured
-    subreddits, and pushes the comments to a Kinesis stream.
+    Scans for active tenants, polls Reddit, and sends messages to an SQS queue.
     """
     credentials = get_reddit_credentials()
     reddit = praw.Reddit(
@@ -47,7 +44,7 @@ def lambda_handler(event, context):
     )
     
     active_tenants = get_active_tenants()
-    all_records_to_send = []
+    messages_to_send = []
 
     for tenant in active_tenants:
         tenant_id = tenant['tenant_id']
@@ -58,9 +55,7 @@ def lambda_handler(event, context):
         for subreddit_name in subreddits:
             try:
                 subreddit = reddit.subreddit(subreddit_name)
-                # Poll for a few recent comments instead of an endless stream
                 for comment in subreddit.comments(limit=5):
-                    # This is the new payload structure our processor will need to handle
                     payload = {
                         "tenant_id": tenant_id,
                         "topic": subreddit_name,
@@ -73,34 +68,34 @@ def lambda_handler(event, context):
                         }
                     }
                     
-                    record = {
-                        "Data": json.dumps(payload).encode("utf-8"),
-                        "PartitionKey": tenant_id # Partition by tenant for logical separation
+                    # SQS SendMessageBatch requires a list of entries
+                    entry = {
+                        'Id': comment.id,
+                        'MessageBody': json.dumps(payload)
                     }
-                    all_records_to_send.append(record)
+                    messages_to_send.append(entry)
             except Exception as e:
-                print(f"Could not process subreddit '{subreddit_name}' for tenant '{tenant_id}'. Error: {e}")
-                continue # Skip to the next subreddit
+                print(f"Could not process subreddit '{subreddit_name}'. Error: {e}")
+                continue
 
-    if not all_records_to_send:
+    if not messages_to_send:
         print("No new comments found across all tenants.")
         return {"statusCode": 200, "body": "No new comments found."}
 
     try:
-        print(f"Sending {len(all_records_to_send)} total live comments to Kinesis stream: {STREAM_NAME}")
-        
-        # Kinesis put_records has a limit of 500 records per call
-        # For simplicity, we assume we won't hit it. In production, you'd batch this.
-        kinesis_client.put_records(
-            StreamName=STREAM_NAME,
-            Records=all_records_to_send[:500]
-        )
+        # SQS has a limit of 10 messages per batch call
+        for i in range(0, len(messages_to_send), 10):
+            batch = messages_to_send[i:i + 10]
+            print(f"Sending batch of {len(batch)} messages to SQS queue: {QUEUE_URL}")
+            sqs_client.send_message_batch(
+                QueueUrl=QUEUE_URL,
+                Entries=batch
+            )
         
         return {
             "statusCode": 200,
-            "body": f"Successfully sent {len(all_records_to_send)} live comments to Kinesis."
+            "body": f"Successfully sent {len(messages_to_send)} messages to SQS."
         }
-        
     except Exception as e:
-        print(f"Error sending data to Kinesis: {e}")
+        print(f"Error sending data to SQS: {e}")
         raise e

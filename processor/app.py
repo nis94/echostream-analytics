@@ -1,16 +1,16 @@
 import os
 import json
 import boto3
-import base64
 from datetime import datetime
+from decimal import Decimal
 
 # --- AWS Clients ---
 s3 = boto3.client("s3")
 dynamodb = boto3.resource("dynamodb")
 comprehend = boto3.client("comprehend")
 DATA_LAKE_BUCKET = os.environ.get("DATA_LAKE_BUCKET")
-DATA_TABLE = os.environ.get("DATA_TABLE")
-table = dynamodb.Table(DATA_TABLE)
+DATA_TABLE_NAME = os.environ.get("DATA_TABLE")
+table = dynamodb.Table(DATA_TABLE_NAME)
 
 # --- Pluggable Sentiment Analysis Engine (with lazy imports) ---
 class ComprehendSentimentAnalyzer:
@@ -19,11 +19,7 @@ class ComprehendSentimentAnalyzer:
         print(f"Calling Comprehend for text: {truncated_text[:100]}...")
         return comprehend.detect_sentiment(Text=truncated_text, LanguageCode="en")
 
-class NLTKSentimentAnalyzer:
-    # ... (This class is unchanged)
-    pass
-
-ANALYZERS = {"comprehend": ComprehendSentimentAnalyzer, "nltk": NLTKSentimentAnalyzer}
+ANALYZERS = {"comprehend": ComprehendSentimentAnalyzer}
 
 def get_analyzer(engine_name="comprehend"):
     AnalyzerClass = ANALYZERS.get(engine_name)
@@ -31,27 +27,30 @@ def get_analyzer(engine_name="comprehend"):
         raise ValueError(f"Unknown sentiment engine: {engine_name}")
     return AnalyzerClass()
 
-# --- Main Lambda Handler (Refactored for Multi-Tenant Payload) ---
+# --- Main Lambda Handler (Refactored for SQS) ---
 def lambda_handler(event, context):
-    print(f"Received Kinesis event with {len(event.get('Records', []))} records.")
+    """
+    Receives a batch of messages from SQS, enriches them with sentiment analysis,
+    and stores them in S3 and DynamoDB.
+    """
+    print(f"Received SQS event with {len(event.get('Records', []))} messages.")
     
     engine_name = os.environ.get("SENTIMENT_ENGINE", "comprehend")
     analyzer = get_analyzer(engine_name)
     
     items_to_write = []
     
+    # --- NEW: SQS EVENT PARSING LOGIC ---
     for record in event.get('Records', []):
         try:
-            # Decode and parse the full payload from Kinesis
-            payload_bytes = base64.b64decode(record['kinesis']['data'])
-            payload = json.loads(payload_bytes)
+            # The message from the producer is in the 'body' of the SQS record
+            payload = json.loads(record['body'])
             
-            # Extract the tenant context and the nested post object
             tenant_id = payload['tenant_id']
             topic = payload['topic']
             post = payload['post']
             
-            # 1. Write the raw payload to our newly partitioned S3 path
+            # 1. Write the raw payload to S3
             now = datetime.utcnow()
             s3_key = f"raw/{tenant_id}/{topic}/{now.strftime('%Y/%m/%d')}/{post['id']}.json"
             s3.put_object(Bucket=DATA_LAKE_BUCKET, Key=s3_key, Body=json.dumps(payload))
@@ -69,10 +68,10 @@ def lambda_handler(event, context):
                 "timestamp": post["timestamp"],
                 "source": post["source"],
                 "sentiment": sentiment_result.get("Sentiment"),
-                "sentiment_score_positive": str(sentiment_result.get("SentimentScore", {}).get("Positive", 0)),
-                "sentiment_score_negative": str(sentiment_result.get("SentimentScore", {}).get("Negative", 0)),
-                "sentiment_score_neutral": str(sentiment_result.get("SentimentScore", {}).get("Neutral", 0)),
-                "sentiment_score_mixed": str(sentiment_result.get("SentimentScore", {}).get("Mixed", 0)),
+                "sentiment_score_positive": str(Decimal(str(sentiment_result.get("SentimentScore", {}).get("Positive", 0)))),
+                "sentiment_score_negative": str(Decimal(str(sentiment_result.get("SentimentScore", {}).get("Negative", 0)))),
+                "sentiment_score_neutral": str(Decimal(str(sentiment_result.get("SentimentScore", {}).get("Neutral", 0)))),
+                "sentiment_score_mixed": str(Decimal(str(sentiment_result.get("SentimentScore", {}).get("Mixed", 0)))),
             }
             items_to_write.append(item)
 
