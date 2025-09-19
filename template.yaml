@@ -485,6 +485,34 @@ Resources:
                   - lambda:InvokeFunction
                 Resource: !GetAtt SummarizerLambdaFunction.Arn
 
+  AlertingLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [lambda.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: EchoStreamAlertingPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt DataTable.Arn
+                  - !GetAtt TenantsTable.Arn
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                Resource: "*"
+
   AlertingLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
