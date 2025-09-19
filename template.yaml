@@ -301,6 +301,11 @@ Resources:
                   - Effect: Allow
                     Action: [comprehend:DetectSentiment]
                     Resource: "*"
+                  - Effect: Allow
+                    Action:
+                      - sqs:ReceiveMessage
+                      - sqs:DeleteMessage
+                      - sqs:GetQueueAttributes
 
   QueryLambdaFunction:
     Type: AWS::Serverless::Function
