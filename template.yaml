@@ -515,20 +515,19 @@ Resources:
           TENANTS_TABLE: !Ref TenantsTable
           SENDER_EMAIL: "echostreamtest@gmail.com"
 
-  AlertingScheduleMorning:
+  AlertingSchedule:
     Type: AWS::Scheduler::Schedule
     Properties:
-      Name: EchoStream-Morning-Alert-Schedule
-      Description: "Triggers the Alerting Lambda every day at 9 AM Israel Time."
-      ScheduleExpression: "cron(0 9 * * ? *)" # 9:00 AM
-      ScheduleExpressionTimeZone: "Asia/Jerusalem"
-      FlexibleTimeWindow: { Mode: "OFF" }
+      Name: EchoStream-12-Hour-Alert-Schedule
+      Description: "Triggers the Alerting Lambda every 12 hours."
+      ScheduleExpression: "rate(12 hours)"
+      FlexibleTimeWindow: { "Mode": "OFF" }
       State: "ENABLED"
       Target:
         Arn: !GetAtt AlertingLambdaFunction.Arn
-        RoleArn: !GetAtt AlertingScheduleMorningRole.Arn
+        RoleArn: !GetAtt AlertingScheduleRole.Arn
 
-  AlertingScheduleMorningRole:
+  AlertingScheduleRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -538,7 +537,7 @@ Resources:
             Principal: { Service: [scheduler.amazonaws.com] }
             Action: [sts:AssumeRole]
       Policies:
-        - PolicyName: EchoStreamAlertingSchedulerMorningInvokePolicy
+        - PolicyName: EchoStreamAlertingSchedulerInvokePolicy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -546,36 +545,6 @@ Resources:
                 Action: [lambda:InvokeFunction]
                 Resource: !GetAtt AlertingLambdaFunction.Arn
 
-  AlertingScheduleEvening:
-    Type: AWS::Scheduler::Schedule
-    Properties:
-      Name: EchoStream-Evening-Alert-Schedule
-      Description: "Triggers the Alerting Lambda every day at 9 PM Israel Time."
-      ScheduleExpression: "cron(0 21 * * ? *)" # 9:00 PM
-      ScheduleExpressionTimeZone: "Asia/Jerusalem"
-      FlexibleTimeWindow: { Mode: "OFF" }
-      State: "ENABLED"
-      Target:
-        Arn: !GetAtt AlertingLambdaFunction.Arn
-        RoleArn: !GetAtt AlertingScheduleEveningRole.Arn
-
-  AlertingScheduleEveningRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal: { Service: [scheduler.amazonaws.com] }
-            Action: [sts:AssumeRole]
-      Policies:
-        - PolicyName: EchoStreamAlertingSchedulerEveningInvokePolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: [lambda:InvokeFunction]
-                Resource: !GetAtt AlertingLambdaFunction.Arn
 
 Outputs:
   HttpApiUrl:
