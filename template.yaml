@@ -485,6 +485,82 @@ Resources:
                   - lambda:InvokeFunction
                 Resource: !GetAtt SummarizerLambdaFunction.Arn
 
+  AlertingLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EchoStream-Alerting
+      CodeUri: alerting/
+      Handler: app.lambda_handler
+      Role: !GetAtt AlertingLambdaRole.Arn
+      Timeout: 60
+      Environment:
+        Variables:
+          DATA_TABLE: !Ref DataTable
+          TENANTS_TABLE: !Ref TenantsTable
+          SENDER_EMAIL: "echostreamtest@gmail.com"
+
+  AlertingScheduleMorning:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: EchoStream-Morning-Alert-Schedule
+      Description: "Triggers the Alerting Lambda every day at 9 AM Israel Time."
+      ScheduleExpression: "cron(0 9 * * ? *)" # 9:00 AM
+      ScheduleExpressionTimeZone: "Asia/Jerusalem"
+      FlexibleTimeWindow: { Mode: "OFF" }
+      State: "ENABLED"
+      Target:
+        Arn: !GetAtt AlertingLambdaFunction.Arn
+        RoleArn: !GetAtt AlertingScheduleMorningRole.Arn
+
+  AlertingScheduleMorningRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [scheduler.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      Policies:
+        - PolicyName: EchoStreamAlertingSchedulerMorningInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [lambda:InvokeFunction]
+                Resource: !GetAtt AlertingLambdaFunction.Arn
+
+  AlertingScheduleEvening:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: EchoStream-Evening-Alert-Schedule
+      Description: "Triggers the Alerting Lambda every day at 9 PM Israel Time."
+      ScheduleExpression: "cron(0 21 * * ? *)" # 21:00 (9:00 PM)
+      ScheduleExpressionTimeZone: "Asia/Jerusalem"
+      FlexibleTimeWindow: { Mode: "OFF" }
+      State: "ENABLED"
+      Target:
+        Arn: !GetAtt AlertingLambdaFunction.Arn
+        RoleArn: !GetAtt AlertingScheduleEveningRole.Arn
+
+  AlertingScheduleEveningRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [scheduler.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      Policies:
+        - PolicyName: EchoStreamAlertingSchedulerEveningInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [lambda:InvokeFunction]
+                Resource: !GetAtt AlertingLambdaFunction.Arn
+
 Outputs:
   HttpApiUrl:
     Description: "The invoke URL for the HTTP API"
