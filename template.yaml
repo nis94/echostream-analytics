@@ -306,6 +306,8 @@ Resources:
                       - sqs:ReceiveMessage
                       - sqs:DeleteMessage
                       - sqs:GetQueueAttributes
+                    Resource: !GetAtt IngestionQueue.Arn
+
 
   QueryLambdaFunction:
     Type: AWS::Serverless::Function
