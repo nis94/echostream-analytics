@@ -107,8 +107,8 @@ Resources:
   # S3 Data Lake Bucket
   # ------------------------------------------------------------
   DataLakeBucket:
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub "echostream-datalake-${AWS::AccountId}-${AWS::Region}"
@@ -122,8 +122,8 @@ Resources:
   # DynamoDB Table for Real-time Analytics
   # ------------------------------------------------------------
   DataTable:
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: EchoStream-DataTable
