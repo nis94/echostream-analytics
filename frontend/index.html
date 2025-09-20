@@ -9,9 +9,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     
     <script src="config.js"></script>
-    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.7.16.min.js"></script>
-    <script src="https://rawgit.com/aws/amazon-cognito-identity-js/master/dist/aws-cognito-sdk.min.js"></script>
-    <script src="https://rawgit.com/aws/amazon-cognito-identity-js/master/dist/amazon-cognito-identity.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.12/dist/amazon-cognito-identity.min.js"></script>
+    
     <style>
         :root {
             --primary-color: #007bff; --primary-hover: #0056b3; --dark-blue: #172b4d;
@@ -28,7 +27,7 @@
         .container { padding: 2em; max-width: 1200px; margin: 30px auto; background-color: var(--white); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .login-container { max-width: 400px; margin-top: 8vh; }
         h1, h2 { color: var(--dark-blue); }
-        input, select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1em; }
+        input, select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1em; background-color: var(--white); }
         button { width: 100%; padding: 12px 15px; background-color: var(--primary-color); color: var(--white); border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 500; transition: background-color 0.2s; }
         button:hover { background-color: var(--primary-hover); }
         button:disabled { background-color: #a5adba; cursor: not-allowed; }
@@ -38,7 +37,7 @@
         tr:last-child td { border-bottom: none; }
         tr:nth-child(even) { background-color: #fafbfc; }
         th { background-color: #f4f5f7; font-weight: 700; color: var(--text-light); }
-        .text-cell { max-height: 90px; overflow-y: auto; display: block; }
+        .text-cell { max-height: 90px; overflow-y: auto; display: block; white-space: pre-wrap; }
         .sentiment-POSITIVE { color: var(--positive); font-weight: 500; }
         .sentiment-NEGATIVE { color: var(--negative); font-weight: 500; }
         .sentiment-NEUTRAL { color: var(--text-light); }
@@ -73,13 +72,21 @@
                 } else { this.renderLogin(); }
             },
 
-            renderLogin: function() { /* ... unchanged ... */ },
+            renderLogin: function() {
+                document.getElementById('app-root').innerHTML = `
+                    <div class="container login-container">
+                        <h1>🌊 EchoStream Analytics</h1><h2>Please Sign In</h2>
+                        <input type="text" id="username" placeholder="Username"><input type="password" id="password" placeholder="Password">
+                        <button id="login-btn" onclick="app.login()">Login</button><p id="login-error"></p>
+                    </div>`;
+            },
+
             renderDashboard: function() {
                 const claims = JSON.parse(atob(this.idToken.split('.')[1]));
                 const username = claims['cognito:username'];
                 document.getElementById('app-root').innerHTML = `
                     <div class="header">
-                        <h1>🌊 EchoStream Analytics</h1>
+                        <h1>🌊 EchoStream</h1>
                         <div style="display: flex; align-items: center;">
                            <span class="user-info">Welcome, ${username}</span>
                            <button onclick="app.logout()">Logout</button>
@@ -116,14 +123,15 @@
                     const response = await fetch(`${this.config.API_URL}/config`, { headers: { 'Authorization': this.idToken } });
                     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                     this.tenantConfig = await response.json();
-                    console.log("Tenant config loaded:", this.tenantConfig);
                 } catch (e) {
                     console.error('Failed to fetch tenant config:', e);
+                    // Handle config fetch error gracefully
+                    this.tenantConfig = { subreddits: [] }; 
                 }
             },
 
             fetchData: async function() {
-                const topic = document.getElementById('topic-select').value; // Read from dropdown
+                const topic = document.getElementById('topic-select').value;
                 const fetchBtn = document.getElementById('fetch-btn');
                 const info = document.getElementById('info');
                 const error = document.getElementById('error');
@@ -141,7 +149,7 @@
                     if (data.length === 0) { info.textContent = 'Query returned no results.'; return; }
 
                     const desiredHeaders = ['timestamp', 'author', 'text', 'sentiment', 'sentiment_score_positive', 'sentiment_score_negative'];
-                    const displayHeaders = {'timestamp': 'Timestamp', 'author': 'Author', 'text': 'Comment', 'sentiment': 'Sentiment', 'sentiment_score_positive': 'Positive', 'sentiment_score_negative': 'Negative'};
+                    const displayHeaders = {'timestamp': 'Timestamp', 'author': 'Author', 'text': 'Comment', 'sentiment': 'Sentiment', 'sentiment_score_positive': 'Positive %', 'sentiment_score_negative': 'Negative %'};
                     
                     tableHeader.innerHTML = desiredHeaders.map(h => `<th>${displayHeaders[h]}</th>`).join('');
                     
@@ -174,8 +182,7 @@
                 }
             },
 
-            // Unchanged methods for completeness
-            login: function() {
+            login: async function() {
                 const username = document.getElementById('username').value;
                 const password = document.getElementById('password').value;
                 const loginError = document.getElementById('login-error');
@@ -186,6 +193,7 @@
                 const authDetails = new AmazonCognitoIdentity.AuthenticationDetails({ Username: username, Password: password });
                 const userData = { Username: username, Pool: this.userPool };
                 this.cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+                
                 this.cognitoUser.authenticateUser(authDetails, {
                     onSuccess: async (result) => {
                         this.idToken = result.getIdToken().getJwtToken();
