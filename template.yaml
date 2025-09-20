@@ -107,8 +107,8 @@ Resources:
   # S3 Data Lake Bucket
   # ------------------------------------------------------------
   DataLakeBucket:
-    DeletionPolicy: Delete
-    UpdateReplacePolicy: Delete
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub "echostream-datalake-${AWS::AccountId}-${AWS::Region}"
@@ -122,6 +122,8 @@ Resources:
   # DynamoDB Table for Real-time Analytics
   # ------------------------------------------------------------
   DataTable:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: EchoStream-DataTable
@@ -350,6 +352,47 @@ Resources:
                 Action:
                   - dynamodb:Query
                 Resource: !GetAtt DataTable.Arn
+
+  TenantConfigLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EchoStream-TenantConfig
+      CodeUri: config/
+      Handler: app.lambda_handler
+      Role: !GetAtt TenantConfigLambdaRole.Arn
+      Environment:
+        Variables:
+          TENANTS_TABLE_NAME: !Ref TenantsTable
+      Events:
+        ConfigApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /config
+            Method: get
+            ApiId: !Ref HttpApi
+            Auth:
+              Authorizer: JwtAuthorizer
+
+  TenantConfigLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [lambda.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: EchoStreamTenantConfigPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                Resource: !GetAtt TenantsTable.Arn
   
   FrontendBucket:
     DeletionPolicy: Delete
