@@ -595,6 +595,47 @@ Resources:
                 Action: [lambda:InvokeFunction]
                 Resource: !GetAtt AlertingLambdaFunction.Arn
 
+  SummaryLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EchoStream-Summary
+      CodeUri: summary/
+      Handler: app.lambda_handler
+      Role: !GetAtt SummaryLambdaRole.Arn
+      Environment:
+        Variables:
+          TENANTS_TABLE_NAME: !Ref TenantsTable
+      Events:
+        SummaryApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /summary
+            Method: get
+            ApiId: !Ref HttpApi
+            Auth:
+              Authorizer: JwtAuthorizer
+
+  SummaryLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [lambda.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: EchoStreamSummaryPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                Resource: !GetAtt TenantsTable.Arn
+
 
 Outputs:
   HttpApiUrl:
