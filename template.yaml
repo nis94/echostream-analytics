@@ -644,7 +644,7 @@ Resources:
       Handler: app.lambda_handler
       Runtime: python3.11
       Architectures:
-        - arm64
+        - arm64 # CORRECTED: This is now a list item
       MemorySize: 256
       Timeout: 120 # 2 minutes
       Policies:
@@ -652,21 +652,21 @@ Resources:
             - Effect: Allow
               Action:
                 - dynamodb:Query
-                - dynamodb:Scan # Use Scan judiciously, prefer Query
+                - dynamodb:Scan
               Resource: !GetAtt DataTable.Arn
             - Effect: Allow
               Action:
                 - bedrock:InvokeModel
-              Resource: 'arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0' # Or other Claude model
+              Resource: 'arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0'
             - Effect: Allow
               Action:
                 - ses:SendEmail
-              Resource: !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/echostreamtest@gmail.com' 
+              Resource: !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/SENDER_EMAIL@example.com' # <-- IMPORTANT: Replace with your verified SES email
       Environment:
         Variables:
           DYNAMODB_TABLE: !Ref DataTable
           BEDROCK_MODEL_ID: 'anthropic.claude-3-sonnet-20240229-v1:0'
-          SENDER_EMAIL: 'echostreamtest@gmail.com' 
+          SENDER_EMAIL: 'echostreamtest@gmail.com'
 
   DailyDigestSchedule:
     Type: AWS::Scheduler::Schedule
