@@ -1,8 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  EchoStream Analytics - Foundational resources including S3 data lake,
-  DynamoDB table, and IAM roles.
+  EchoStream Analytics
 
 Globals:
   Function:
@@ -636,6 +635,71 @@ Resources:
                   - dynamodb:GetItem
                 Resource: !GetAtt TenantsTable.Arn
 
+  DailyDigestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: echostream-daily-digest-fn
+      Description: Generates and emails a daily AI-powered summary of sentiment data for each tenant.
+      CodeUri: src/handlers/daily_digest
+      Handler: app.lambda_handler
+      Runtime: python3.11
+      Architectures:
+        - arm64
+      MemorySize: 256
+      Timeout: 120 # 2 minutes
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:Scan # Use Scan judiciously, prefer Query
+              Resource: !GetAtt DataTable.Arn
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: 'arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0' # Or other Claude model
+            - Effect: Allow
+              Action:
+                - ses:SendEmail
+              Resource: !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/echostreamtest@gmail.com' 
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref DataTable
+          BEDROCK_MODEL_ID: 'anthropic.claude-3-sonnet-20240229-v1:0'
+          SENDER_EMAIL: 'echostreamtest@gmail.com' 
+
+  DailyDigestSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: echostream-daily-digest-schedule
+      Description: Triggers the DailyDigestFunction every day at 10:00 AM UTC.
+      ScheduleExpression: 'cron(0 10 * * ? *)'
+      ScheduleExpressionTimeZone: 'UTC'
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      State: 'ENABLED'
+      Target:
+        Arn: !GetAtt DailyDigestFunction.Arn
+        RoleArn: !GetAtt DailyDigestScheduleRole.Arn
+
+  DailyDigestScheduleRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: scheduler.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: InvokeLambdaPolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action: 'lambda:InvokeFunction'
+                  Resource: !GetAtt DailyDigestFunction.Arn
 
 Outputs:
   HttpApiUrl:
