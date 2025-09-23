@@ -642,9 +642,6 @@ Resources:
       Description: Generates and emails a daily AI-powered summary of sentiment data for each tenant.
       CodeUri: src/handlers/daily_digest
       Handler: app.lambda_handler
-      Runtime: python3.11
-      Architectures:
-        - arm64 # CORRECTED: This is now a list item
       MemorySize: 256
       Timeout: 120 # 2 minutes
       Policies:
