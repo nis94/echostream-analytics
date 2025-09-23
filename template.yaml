@@ -460,6 +460,7 @@ Resources:
         Variables:
           DATA_TABLE: !Ref DataTable
           TENANTS_TABLE: !Ref TenantsTable
+          SENDER_EMAIL: "echostreamtest@gmail.com"
 
   SummarizerLambdaRole:
     Type: AWS::IAM::Role
@@ -490,6 +491,10 @@ Resources:
                   - bedrock:InvokeModel
                 # This ARN is for the Claude 3 Sonnet model.
                 Resource: "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0"
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                Resource: "*"
 
   SummarizerSchedule:
     Type: AWS::Scheduler::Schedule
