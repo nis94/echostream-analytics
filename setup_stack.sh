@@ -73,7 +73,7 @@ cat > $TENANTS_JSON_FILE << EOL
                 "Item": {
                     "tenant_id": {"S": "9b2c3d4e-5f6a-4b7c-9d0e-2f3a4b5c6d7e"},
                     "is_active": {"BOOL": true},
-                    "subreddits": {"L": [{"S": "GOOG"}, {"S": "NVDA"}, {"S": "AAPL"}, {"S": "MSFT"}]},
+                    "subreddits": {"L": [ {"S": "NVDA_Stock"}, {"S": "AAPL"}, {"S": "MSFT"}]},
                     "tenant_name": {"S": "Blue Chip Stock Monitor"},
                     "contact_email": {"S": "$CONTACT_EMAIL"}
                 }

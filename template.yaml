@@ -66,6 +66,8 @@ Resources:
   UserPool:
     Type: AWS::Cognito::UserPool
     Properties:
+      LambdaConfig:
+        PostConfirmation: !GetAtt PostConfirmationLambdaFunction.Arn
       UserPoolName: EchoStream-UserPool
       AliasAttributes:
         - email
@@ -641,6 +643,44 @@ Resources:
                   - dynamodb:GetItem
                 Resource: !GetAtt TenantsTable.Arn
 
+  # You can add these resources at the end of your template's Resources section
+
+  PostConfirmationLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EchoStream-PostConfirmation
+      CodeUri: post-confirmation/
+      Handler: app.lambda_handler
+      Role: !GetAtt PostConfirmationLambdaRole.Arn
+      Environment:
+        Variables:
+          TENANTS_TABLE_NAME: !Ref TenantsTable
+
+  PostConfirmationLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [lambda.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: EchoStreamPostConfirmationPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource: !GetAtt TenantsTable.Arn
+              - Effect: Allow
+                Action:
+                  - cognito-idp:AdminUpdateUserAttributes
+                  - cognito-idp:AdminAddUserToGroup
+                Resource: !GetAtt UserPool.Arn
 
 Outputs:
   HttpApiUrl:
