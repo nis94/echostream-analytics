@@ -69,6 +69,8 @@ Resources:
       LambdaConfig:
         PostConfirmation: !GetAtt PostConfirmationLambdaFunction.Arn
       UserPoolName: EchoStream-UserPool
+      AutoVerifiedAttributes:
+        - email
       AliasAttributes:
         - email
       Policies:
