@@ -669,6 +669,14 @@ Resources:
         Variables:
           TENANTS_TABLE_NAME: !Ref TenantsTable
 
+  PostConfirmationLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt PostConfirmationLambdaFunction.Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !GetAtt UserPool.Arn
+
   PostConfirmationLambdaRole:
     Type: AWS::IAM::Role
     Properties:
