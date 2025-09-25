@@ -96,6 +96,13 @@ Resources:
         - ALLOW_REFRESH_TOKEN_AUTH
         - ALLOW_USER_SRP_AUTH
 
+  AdminsGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: admins
+      UserPoolId: !Ref UserPool
+      Description: "Group for tenant administrators"
+
   # ------------------------------------------------------------
   # SQS
   # ------------------------------------------------------------
