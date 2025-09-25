@@ -656,8 +656,6 @@ Resources:
                   - dynamodb:GetItem
                 Resource: !GetAtt TenantsTable.Arn
 
-  # You can add these resources at the end of your template's Resources section
-
   PostConfirmationLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -702,6 +700,49 @@ Resources:
                   - cognito-idp:AdminUpdateUserAttributes
                   - cognito-idp:AdminAddUserToGroup
                 Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*"
+
+  # Add these new resources to your template.yaml's Resources section
+
+  WatchlistLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EchoStream-Watchlist
+      CodeUri: watchlist/
+      Handler: app.lambda_handler
+      Role: !GetAtt WatchlistLambdaRole.Arn
+      Environment:
+        Variables:
+          TENANTS_TABLE_NAME: !Ref TenantsTable
+      Events:
+        WatchlistApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /watchlist
+            Method: post
+            ApiId: !Ref HttpApi
+            Auth:
+              Authorizer: JwtAuthorizer
+
+  WatchlistLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [lambda.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: EchoStreamWatchlistPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:UpdateItem
+                Resource: !GetAtt TenantsTable.Arn
 
 Outputs:
   HttpApiUrl:
