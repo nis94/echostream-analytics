@@ -22,16 +22,20 @@
         .header { background-color: var(--white); color: var(--text-color); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .header h1 { font-size: 1.2em; margin: 0; font-weight: 700; }
         .header .user-info { font-size: 0.9em; color: var(--text-light); }
-        .header button { padding: 6px 12px; font-size: 0.9em; background-color: #6c757d; border-radius: 6px; cursor: pointer; border: none; color: white; margin-left: 20px; }
+        .header button { padding: 6px 12px; font-size: 0.9em; background-color: #6c757d; border-radius: 6px; cursor: pointer; border: none; color: white; margin-left: 10px; }
         .header button:hover { background-color: #5a6268; }
         .container { padding: 2em; max-width: 1200px; margin: 30px auto; background-color: var(--white); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .auth-container { max-width: 400px; margin-top: 8vh; }
         h1, h2 { color: var(--dark-blue); }
-        input, select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1em; background-color: var(--white); box-sizing: border-box; }
+        input, select, textarea { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1em; background-color: var(--white); box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        textarea { resize: vertical; min-height: 80px; }
         button { width: 100%; padding: 12px 15px; background-color: var(--primary-color); color: var(--white); border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 500; transition: background-color 0.2s; }
         button:disabled { background-color: #a5adba; cursor: not-allowed; }
         .link-button { background: none; border: none; color: var(--primary-color); cursor: pointer; padding: 0; text-align: center; margin-top: 1em; width: auto; }
         #app-root > div { display: none; }
+        .form-actions { display: flex; gap: 10px; margin-top: 1em; }
+        .secondary-button { background-color: #6c757d; }
+        .secondary-button:hover { background-color: #5a6268; }
         .table-container { overflow-x: auto; margin-top: 20px; border: 1px solid var(--border-color); border-radius: 6px; }
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         th, td { padding: 12px 15px; border-bottom: 1px solid var(--border-color); text-align: left; word-wrap: break-word; }
@@ -55,6 +59,7 @@
         <div id="signup-view" class="container auth-container"></div>
         <div id="confirm-view" class="container auth-container"></div>
         <div id="dashboard-view"></div>
+        <div id="settings-view"></div>
     </div>
 
     <script>
@@ -83,11 +88,12 @@
             },
 
             renderView: function(viewId) {
-                document.getElementById('login-view').style.display = 'none';
-                document.getElementById('signup-view').style.display = 'none';
-                document.getElementById('confirm-view').style.display = 'none';
-                document.getElementById('dashboard-view').style.display = 'none';
-                document.getElementById(viewId).style.display = 'block';
+                ['login-view', 'signup-view', 'confirm-view', 'dashboard-view', 'settings-view'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+                const viewEl = document.getElementById(viewId);
+                if(viewEl) viewEl.style.display = 'block';
             },
 
             renderLogin: function() {
@@ -132,6 +138,7 @@
                         <h1>🌊 EchoStream</h1>
                         <div style="display: flex; align-items: center;">
                            <span class="user-info">Welcome, ${username}</span>
+                           <button onclick="app.renderSettings()">Settings</button>
                            <button onclick="app.logout()">Logout</button>
                         </div>
                     </div>
@@ -151,25 +158,89 @@
                         </div>
                     </div>`;
                 this.renderView('dashboard-view');
+                this.populateTopicDropdown();
+            },
+            
+            renderSettings: function() {
+                const claims = JSON.parse(atob(this.idToken.split('.')[1]));
+                const username = claims['cognito:username'];
+                document.getElementById('settings-view').innerHTML = `
+                    <div class="header">
+                        <h1>🌊 EchoStream</h1>
+                        <div style="display: flex; align-items: center;">
+                           <span class="user-info">Welcome, ${username}</span>
+                           <button onclick="app.logout()">Logout</button>
+                        </div>
+                    </div>
+                    <div class="container">
+                        <h2>Settings</h2>
+                        <p>Manage your tenant configuration and watchlist.</p>
+                        <label for="tenant-name">Team Name</label>
+                        <input type="text" id="tenant-name" value="${this.tenantConfig.tenant_name || ''}">
+                        <label for="subreddits">Subreddits to Monitor (comma-separated)</label>
+                        <textarea id="subreddits">${(this.tenantConfig.subreddits || []).join(', ')}</textarea>
+                        <p id="settings-info"></p><p id="settings-error" class="error-text"></p>
+                        <div class="form-actions">
+                            <button id="save-btn" onclick="app.saveSettings()">Save Changes</button>
+                            <button class="secondary-button" onclick="app.renderDashboard()">Cancel</button>
+                        </div>
+                    </div>`;
+                this.renderView('settings-view');
+            },
+
+            populateTopicDropdown: function() {
                 const topicSelect = document.getElementById('topic-select');
-                if (this.tenantConfig && this.tenantConfig.subreddits) {
+                if (!topicSelect) return;
+                topicSelect.innerHTML = '';
+                if (this.tenantConfig && this.tenantConfig.subreddits && this.tenantConfig.subreddits.length > 0) {
                     this.tenantConfig.subreddits.forEach(topic => {
                         const option = document.createElement('option');
                         option.value = topic;
                         option.textContent = topic;
                         topicSelect.appendChild(option);
                     });
+                     document.getElementById('fetch-btn').disabled = false;
+                } else {
+                    const option = document.createElement('option');
+                    option.textContent = 'No topics configured. Go to Settings.';
+                    option.disabled = true;
+                    topicSelect.appendChild(option);
+                    document.getElementById('fetch-btn').disabled = true;
                 }
             },
             
+            saveSettings: async function() {
+                const saveBtn = document.getElementById('save-btn');
+                const info = document.getElementById('settings-info');
+                const error = document.getElementById('settings-error');
+                info.textContent = ''; error.textContent = '';
+                saveBtn.textContent = 'Saving...'; saveBtn.disabled = true;
+
+                const newName = document.getElementById('tenant-name').value;
+                const subredditsString = document.getElementById('subreddits').value;
+                const newSubreddits = subredditsString.split(',').map(s => s.trim()).filter(s => s);
+
+                try {
+                    await fetch(`${this.config.API_URL}/watchlist`, {
+                        method: 'POST',
+                        headers: { 'Authorization': this.idToken, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tenant_name: newName, subreddits: newSubreddits })
+                    });
+                    await this.fetchTenantConfig();
+                    this.renderDashboard();
+                } catch (e) {
+                    error.textContent = `Failed to save settings: ${e.message}`;
+                    if(saveBtn) { saveBtn.textContent = 'Save Changes'; saveBtn.disabled = false; }
+                }
+            },
+
             signUp: function() {
                 const username = document.getElementById('signup-username').value;
                 const email = document.getElementById('signup-email').value;
                 const password = document.getElementById('signup-password').value;
                 const signupError = document.getElementById('signup-error');
                 const signupBtn = document.getElementById('signup-btn');
-                signupError.textContent = '';
-                signupBtn.textContent = 'Registering...'; signupBtn.disabled = true;
+                signupError.textContent = ''; signupBtn.textContent = 'Registering...'; signupBtn.disabled = true;
 
                 this.userPool.signUp(username, password, [new AmazonCognitoIdentity.CognitoUserAttribute({ Name: 'email', Value: email })], null, (err, result) => {
                     signupBtn.textContent = 'Register'; signupBtn.disabled = false;
@@ -183,8 +254,7 @@
                 const code = document.getElementById('confirm-code').value;
                 const confirmError = document.getElementById('confirm-error');
                 const confirmBtn = document.getElementById('confirm-btn');
-                confirmError.textContent = '';
-                confirmBtn.textContent = 'Confirming...'; confirmBtn.disabled = true;
+                confirmError.textContent = ''; confirmBtn.textContent = 'Confirming...'; confirmBtn.disabled = true;
                 
                 const cognitoUser = new AmazonCognitoIdentity.CognitoUser({ Username: username, Pool: this.userPool });
                 cognitoUser.confirmRegistration(code, true, (err, result) => {
@@ -196,8 +266,8 @@
                     }
                 });
             },
-
-            login: function() {
+            
+            login: async function() {
                 const username = document.getElementById('login-username').value;
                 const password = document.getElementById('login-password').value;
                 const loginError = document.getElementById('login-error');
