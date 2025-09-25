@@ -78,6 +78,9 @@ Resources:
           RequireNumbers: true
           RequireSymbols: false
           RequireUppercase: true
+      EmailConfiguration:
+        EmailSendingAccount: DEVELOPER
+        SourceArn: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/echostreamtest@gmail.com"
       Schema:
         - Name: tenant_id
           AttributeDataType: String
