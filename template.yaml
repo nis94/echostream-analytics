@@ -81,6 +81,7 @@ Resources:
       EmailConfiguration:
         EmailSendingAccount: DEVELOPER
         SourceArn: !Sub "arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/echostreamtest@gmail.com"
+        From: "EchoStream Analytics <echostreamtest@gmail.com>"
       Schema:
         - Name: tenant_id
           AttributeDataType: String
@@ -241,7 +242,7 @@ Resources:
     Properties:
       Name: EchoStream-15-Minute-Poll-Schedule
       Description: "Triggers the Producer Lambda every 15 minutes to fetch new data."
-      ScheduleExpression: "rate(15 minutes)"
+      ScheduleExpression: "rate(1 hour)"
       FlexibleTimeWindow:
         Mode: "OFF"
       State: "ENABLED"
