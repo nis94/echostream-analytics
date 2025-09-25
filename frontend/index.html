@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,36 +8,139 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-    
+
     <script src="config.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.12/dist/amazon-cognito-identity.min.js"></script>
-    
+    <script
+        src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.12/dist/amazon-cognito-identity.min.js"></script>
+
     <style>
         :root {
-            --primary-color: #007bff; --primary-hover: #0056b3; --dark-blue: #172b4d;
-            --light-gray: #f4f5f7; --border-color: #dfe1e6; --white: #ffffff;
-            --text-color: #172b4d; --text-light: #505f79;
-            --positive: #00875a; --negative: #de350b; --neutral: #6b778c;
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --dark-blue: #172b4d;
+            --light-gray: #f4f5f7;
+            --border-color: #dfe1e6;
+            --white: #ffffff;
+            --text-color: #172b4d;
+            --text-light: #505f79;
+            --positive: #00875a;
+            --negative: #de350b;
+            --neutral: #6b778c;
         }
-        body { font-family: 'Inter', sans-serif; background-color: var(--light-gray); color: var(--text-color); margin: 0; }
-        .header { background-color: var(--white); color: var(--text-color); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .header h1 { font-size: 1.2em; margin: 0; font-weight: 700; }
-        .header button { padding: 6px 12px; font-size: 0.9em; background-color: #6c757d; border-radius: 6px; cursor: pointer; border: none; color: white; margin-left: 20px; }
-        .container { padding: 2em; max-width: 1200px; margin: 30px auto; background-color: var(--white); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .auth-container { max-width: 400px; margin-top: 8vh; }
-        h1, h2 { color: var(--dark-blue); }
-        input, select { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1em; background-color: var(--white); box-sizing: border-box; }
-        button { width: 100%; padding: 12px 15px; background-color: var(--primary-color); color: var(--white); border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 500; transition: background-color 0.2s; }
-        button:disabled { background-color: #a5adba; cursor: not-allowed; }
-        .link-button { background: none; border: none; color: var(--primary-color); cursor: pointer; padding: 0; text-align: center; margin-top: 1em; width: auto; }
-        #app-root > div { display: none; } /* Hide all views by default */
-        .error-text { color: var(--negative); font-weight: bold; margin-top: 1em; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--light-gray);
+            color: var(--text-color);
+            margin: 0;
+        }
+
+        .header {
+            background-color: var(--white);
+            color: var(--text-color);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .header h1 {
+            font-size: 1.2em;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .header button {
+            padding: 6px 12px;
+            font-size: 0.9em;
+            background-color: #6c757d;
+            border-radius: 6px;
+            cursor: pointer;
+            border: none;
+            color: white;
+            margin-left: 20px;
+        }
+
+        .container {
+            padding: 2em;
+            max-width: 1200px;
+            margin: 30px auto;
+            background-color: var(--white);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .auth-container {
+            max-width: 400px;
+            margin-top: 8vh;
+        }
+
+        h1,
+        h2 {
+            color: var(--dark-blue);
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 1em;
+            background-color: var(--white);
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px 15px;
+            background-color: var(--primary-color);
+            color: var(--white);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        button:disabled {
+            background-color: #a5adba;
+            cursor: not-allowed;
+        }
+
+        .link-button {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            cursor: pointer;
+            padding: 0;
+            text-align: center;
+            margin-top: 1em;
+            width: auto;
+        }
+
+        #app-root>div {
+            display: none;
+        }
+
+        /* Hide all views by default */
+        .error-text {
+            color: var(--negative);
+            font-weight: bold;
+            margin-top: 1em;
+        }
     </style>
 </head>
+
 <body>
     <div id="app-root">
         <div id="login-view" class="container auth-container">
-            <h1>🌊 Welcome to EchoStream</h1><h2>Please Sign In</h2>
+            <h1>🌊 Welcome to EchoStream</h1>
+            <h2>Please Sign In</h2>
             <input type="text" id="login-username" placeholder="Username (Email)">
             <input type="password" id="login-password" placeholder="Password">
             <button id="login-btn" onclick="app.login()">Login</button>
@@ -46,7 +150,8 @@
 
         <div id="signup-view" class="container auth-container">
             <h1>Create Your Account</h1>
-            <input type="email" id="signup-email" placeholder="Email Address">
+            <input type="text" id="signup-username" placeholder="Username"> <input type="email" id="signup-email"
+                placeholder="Email Address">
             <input type="password" id="signup-password" placeholder="Password">
             <button id="signup-btn" onclick="app.signUp()">Register</button>
             <p id="signup-error" class="error-text"></p>
@@ -63,7 +168,7 @@
         </div>
 
         <div id="dashboard-view">
-            </div>
+        </div>
     </div>
 
     <script>
@@ -72,23 +177,24 @@
             config: { USER_POOL_ID: window.APP_CONFIG.UserPoolId, CLIENT_ID: window.APP_CONFIG.ClientId, API_URL: window.APP_CONFIG.ApiUrl, REGION: window.APP_CONFIG.Region },
             userPool: null, cognitoUser: null, idToken: null, tenantConfig: null,
 
-            init: function() { /* ... unchanged ... */ },
-            renderView: function(viewId) {
+            init: function () { /* ... unchanged ... */ },
+            renderView: function (viewId) {
                 document.getElementById('login-view').style.display = 'none';
                 document.getElementById('signup-view').style.display = 'none';
                 document.getElementById('confirm-view').style.display = 'none';
                 document.getElementById('dashboard-view').style.display = 'none';
                 document.getElementById(viewId).style.display = 'block';
             },
-            renderLogin: function() { this.renderView('login-view'); },
-            renderSignUp: function() { this.renderView('signup-view'); },
-            renderConfirm: function(username) { 
+            renderLogin: function () { this.renderView('login-view'); },
+            renderSignUp: function () { this.renderView('signup-view'); },
+            renderConfirm: function (username) {
                 this.renderView('confirm-view');
                 if (username) document.getElementById('confirm-username').value = username;
             },
-            renderDashboard: function() { /* ... unchanged ... */ },
-            
-            signUp: function() {
+            renderDashboard: function () { /* ... unchanged ... */ },
+
+            signUp: function () {
+                const username = document.getElementById('signup-username').value;
                 const email = document.getElementById('signup-email').value;
                 const password = document.getElementById('signup-password').value;
                 const signupError = document.getElementById('signup-error');
@@ -100,26 +206,26 @@
                     new AmazonCognitoIdentity.CognitoUserAttribute({ Name: 'email', Value: email })
                 ];
 
-                this.userPool.signUp(email, password, attributeList, null, (err, result) => {
+                // Pass the separate USERNAME to the signUp function, not the email
+                this.userPool.signUp(username, password, attributeList, null, (err, result) => {
                     signupBtn.textContent = 'Register'; signupBtn.disabled = false;
                     if (err) {
                         signupError.textContent = err.message || JSON.stringify(err);
                         return;
                     }
-                    this.cognitoUser = result.user;
-                    console.log('user name is ' + this.cognitoUser.getUsername());
-                    this.renderConfirm(this.cognitoUser.getUsername());
+                    // This part is now correct because it uses the real username
+                    this.renderConfirm(result.user.getUsername());
                 });
             },
 
-            confirmSignUp: function() {
+            confirmSignUp: function () {
                 const username = document.getElementById('confirm-username').value;
                 const code = document.getElementById('confirm-code').value;
                 const confirmError = document.getElementById('confirm-error');
                 const confirmBtn = document.getElementById('confirm-btn');
                 confirmError.textContent = '';
                 confirmBtn.textContent = 'Confirming...'; confirmBtn.disabled = true;
-                
+
                 const userData = { Username: username, Pool: this.userPool };
                 this.cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
 
@@ -138,7 +244,7 @@
 
             // Other methods (login, logout, fetchTenantConfig, fetchData, renderDashboard) are mostly unchanged
             // Re-pasting for completeness
-            init: function() {
+            init: function () {
                 this.userPool = new AmazonCognitoIdentity.CognitoUserPool({ UserPoolId: this.config.USER_POOL_ID, ClientId: this.config.CLIENT_ID });
                 this.cognitoUser = this.userPool.getCurrentUser();
                 if (this.cognitoUser) {
@@ -150,7 +256,7 @@
                     });
                 } else { this.renderLogin(); }
             },
-            renderDashboard: function() {
+            renderDashboard: function () {
                 const claims = JSON.parse(atob(this.idToken.split('.')[1]));
                 const username = claims['cognito:username'];
                 document.getElementById('app-root').innerHTML = `
@@ -168,7 +274,7 @@
                     });
                 }
             },
-            login: function() {
+            login: function () {
                 const username = document.getElementById('login-username').value;
                 const password = document.getElementById('login-password').value;
                 const loginError = document.getElementById('login-error');
@@ -185,12 +291,13 @@
                     onFailure: (err) => { loginError.textContent = err.message || JSON.stringify(err); loginBtn.textContent = 'Login'; loginBtn.disabled = false; },
                 });
             },
-            logout: function() { if (this.cognitoUser) { this.cognitoUser.signOut(); } this.renderLogin(); },
-            fetchTenantConfig: async function() { /* ... unchanged from previous version ... */ },
-            fetchSummary: async function() { /* ... unchanged from previous version ... */ },
-            fetchData: async function() { /* ... unchanged from previous version ... */ },
+            logout: function () { if (this.cognitoUser) { this.cognitoUser.signOut(); } this.renderLogin(); },
+            fetchTenantConfig: async function () { /* ... unchanged from previous version ... */ },
+            fetchSummary: async function () { /* ... unchanged from previous version ... */ },
+            fetchData: async function () { /* ... unchanged from previous version ... */ },
         };
-        window.onload = function() { app.init(); };
+        window.onload = function () { app.init(); };
     </script>
 </body>
+
 </html>
