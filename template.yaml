@@ -686,22 +686,6 @@ Resources:
             Action: [sts:AssumeRole]
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: EchoStreamPostConfirmationPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - dynamodb:PutItem
-                Resource: !GetAtt TenantsTable.Arn
-              - Effect: Allow
-                Action:
-                  - cognito-idp:AdminUpdateUserAttributes
-                  - cognito-idp:AdminAddUserToGroup
-                Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*"
-
-  # Add these new resources to your template.yaml's Resources section
 
   WatchlistLambdaFunction:
     Type: AWS::Serverless::Function
@@ -743,6 +727,52 @@ Resources:
                 Action:
                   - dynamodb:UpdateItem
                 Resource: !GetAtt TenantsTable.Arn
+
+  CreateTenantLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EchoStream-CreateTenant
+      CodeUri: create-tenant/
+      Handler: app.lambda_handler
+      Role: !GetAtt CreateTenantLambdaRole.Arn
+      Environment:
+        Variables:
+          TENANTS_TABLE_NAME: !Ref TenantsTable
+      Events:
+        CreateTenantApiEvent:
+          Type: HttpApi
+          Properties:
+            Path: /tenants
+            Method: post
+            ApiId: !Ref HttpApi
+            Auth:
+              Authorizer: JwtAuthorizer
+
+  CreateTenantLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [lambda.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: EchoStreamCreateTenantPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource: !GetAtt TenantsTable.Arn
+              - Effect: Allow
+                Action:
+                  - cognito-idp:AdminUpdateUserAttributes
+                  - cognito-idp:AdminAddUserToGroup
+                Resource: !Sub "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*"
 
 Outputs:
   HttpApiUrl:
