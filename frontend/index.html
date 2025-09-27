@@ -27,6 +27,7 @@
         .container { padding: 2em; max-width: 1200px; margin: 30px auto; background-color: var(--white); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .auth-container { max-width: 400px; margin-top: 8vh; }
         h1, h2 { color: var(--dark-blue); }
+        label { font-weight: 500; color: var(--text-light); font-size: 0.9em; margin-bottom: 4px; display: block; }
         input, select, textarea { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1em; background-color: var(--white); box-sizing: border-box; font-family: 'Inter', sans-serif; }
         textarea { resize: vertical; min-height: 80px; }
         button { width: 100%; padding: 12px 15px; background-color: var(--primary-color); color: var(--white); border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 500; transition: background-color 0.2s; }
@@ -41,16 +42,17 @@
         th, td { padding: 12px 15px; border-bottom: 1px solid var(--border-color); text-align: left; word-wrap: break-word; }
         tr:last-child td { border-bottom: none; }
         tr:nth-child(even) { background-color: #fafbfc; }
-        th { background-color: #f4f5f7; font-weight: 700; color: var(--text-light); }
+        th { background-color: #f4f5f7; font-weight: 700; color: var(--text-light); text-transform: uppercase; font-size: 0.85em; }
         .text-cell { max-height: 90px; overflow-y: auto; display: block; white-space: pre-wrap; }
         .sentiment-POSITIVE { color: var(--positive); font-weight: 500; }
         .sentiment-NEGATIVE { color: var(--negative); font-weight: 500; }
         .sentiment-NEUTRAL { color: var(--text-light); }
         .summary-box { background-color: #e6f7ff; border-left: 4px solid #007bff; padding: 15px; margin-bottom: 2em; border-radius: 4px; }
         .summary-box h2 { margin-top: 0; }
-        .summary-box p { white-space: pre-wrap; margin-top: 0; }
-        .summary-box .meta { font-size: 0.8em; color: var(--text-light); }
+        .summary-box p { white-space: pre-wrap; margin-top: 0; line-height: 1.6; }
+        .summary-box .meta { font-size: 0.8em; color: var(--text-light); margin-top: 1em; display: block;}
         .error-text { color: var(--negative); font-weight: bold; margin-top: 1em; }
+        .info-text { color: #17a2b8; }
     </style>
 </head>
 <body>
@@ -89,11 +91,9 @@
 
             renderView: function(viewId) {
                 ['login-view', 'signup-view', 'confirm-view', 'dashboard-view', 'settings-view'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.style.display = 'none';
+                    document.getElementById(id).style.display = 'none';
                 });
-                const viewEl = document.getElementById(viewId);
-                if(viewEl) viewEl.style.display = 'block';
+                document.getElementById(viewId).style.display = 'block';
             },
 
             renderLogin: function() {
@@ -148,14 +148,9 @@
                         <p>Select one of your configured topics to see the latest sentiment data.</p>
                         <select id="topic-select"></select>
                         <button id="fetch-btn" onclick="app.fetchData()">Fetch Data</button>
-                        <p id="info"></p><p id="error"></p>
+                        <p id="info" class="info-text"></p><p id="error" class="error-text"></p>
                         <h2>Results</h2>
-                        <div class="table-container">
-                            <table id="results-table">
-                                <thead><tr id="table-header"></tr></thead>
-                                <tbody id="table-body"></tbody>
-                            </table>
-                        </div>
+                        <div class="table-container"><table id="results-table"><thead><tr id="table-header"></tr></thead><tbody id="table-body"></tbody></table></div>
                     </div>`;
                 this.renderView('dashboard-view');
                 this.populateTopicDropdown();
@@ -179,7 +174,7 @@
                         <input type="text" id="tenant-name" value="${this.tenantConfig.tenant_name || ''}">
                         <label for="subreddits">Subreddits to Monitor (comma-separated)</label>
                         <textarea id="subreddits">${(this.tenantConfig.subreddits || []).join(', ')}</textarea>
-                        <p id="settings-info"></p><p id="settings-error" class="error-text"></p>
+                        <p id="settings-info" class="info-text"></p><p id="settings-error" class="error-text"></p>
                         <div class="form-actions">
                             <button id="save-btn" onclick="app.saveSettings()">Save Changes</button>
                             <button class="secondary-button" onclick="app.renderDashboard()">Cancel</button>
@@ -192,6 +187,7 @@
                 const topicSelect = document.getElementById('topic-select');
                 if (!topicSelect) return;
                 topicSelect.innerHTML = '';
+                const fetchBtn = document.getElementById('fetch-btn');
                 if (this.tenantConfig && this.tenantConfig.subreddits && this.tenantConfig.subreddits.length > 0) {
                     this.tenantConfig.subreddits.forEach(topic => {
                         const option = document.createElement('option');
@@ -199,13 +195,13 @@
                         option.textContent = topic;
                         topicSelect.appendChild(option);
                     });
-                     document.getElementById('fetch-btn').disabled = false;
+                     if (fetchBtn) fetchBtn.disabled = false;
                 } else {
                     const option = document.createElement('option');
                     option.textContent = 'No topics configured. Go to Settings.';
                     option.disabled = true;
                     topicSelect.appendChild(option);
-                    document.getElementById('fetch-btn').disabled = true;
+                    if (fetchBtn) fetchBtn.disabled = true;
                 }
             },
             
@@ -221,13 +217,23 @@
                 const newSubreddits = subredditsString.split(',').map(s => s.trim()).filter(s => s);
 
                 try {
-                    await fetch(`${this.config.API_URL}/watchlist`, {
+                    const response = await fetch(`${this.config.API_URL}/watchlist`, {
                         method: 'POST',
                         headers: { 'Authorization': this.idToken, 'Content-Type': 'application/json' },
                         body: JSON.stringify({ tenant_name: newName, subreddits: newSubreddits })
                     });
-                    await this.fetchTenantConfig();
-                    this.renderDashboard();
+                    if (!response.ok) {
+                        const errData = await response.json();
+                        throw new Error(errData.error || `HTTP error! Status: ${response.status}`);
+                    }
+                    
+                    info.textContent = "Settings saved successfully! Refreshing dashboard...";
+                    await this.fetchTenantConfig(); // Re-fetch the latest config
+                    setTimeout(() => {
+                        this.renderDashboard();
+                        this.fetchSummary();
+                    }, 1000);
+
                 } catch (e) {
                     error.textContent = `Failed to save settings: ${e.message}`;
                     if(saveBtn) { saveBtn.textContent = 'Save Changes'; saveBtn.disabled = false; }
@@ -322,7 +328,7 @@
                         <div class="summary-box">
                             <h2>Latest AI Summary</h2>
                             <p>${data.summary}</p>
-                            <p class="meta">Last updated: ${formattedTime}</p>
+                            <span class="meta">Last updated: ${formattedTime}</span>
                         </div>`;
                 } catch (e) {
                     summaryContainer.innerHTML = `<div class="summary-box"><p>Could not load AI summary. Please ensure the summarizer has run at least once.</p></div>`;
