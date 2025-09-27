@@ -34,7 +34,6 @@
         button { padding: 10px 15px; background-color: var(--primary-color); color: var(--white); border: none; border-radius: 6px; cursor: pointer; font-size: 1em; font-weight: 500; white-space: nowrap; }
         button:disabled { background-color: #a5adba; cursor: not-allowed; }
         .link-button { background: none; border: none; color: var(--primary-color); cursor: pointer; padding: 0; text-align: center; margin-top: 1em; width: auto; }
-        #app-root > div { display: none; }
         .form-actions { display: flex; gap: 10px; margin-top: 1em; }
         .secondary-button { background-color: #6c757d; }
         .chart-container { position: relative; height: 40vh; width: 100%; margin: 2em 0; }
@@ -77,12 +76,6 @@
                         } else { this.renderLogin(); }
                     });
                 } else { this.renderLogin(); }
-            },
-
-            renderView: function(viewId) {
-                const views = ['login-view', 'signup-view', 'confirm-view', 'dashboard-view', 'settings-view'];
-                let viewHTML = document.getElementById(viewId + '-template').innerHTML;
-                document.getElementById('app-root').innerHTML = viewHTML;
             },
 
             renderLogin: function() {
@@ -188,7 +181,7 @@
                     });
                      if (fetchBtn) fetchBtn.disabled = false;
                 } else {
-                    const option = document.createElement('option'); option.textContent = 'No topics configured. Go to Settings.'; option.disabled = true; topicSelect.appendChild(option);
+                    const option = document.createElement('option'); option.textContent = 'No topics in watchlist. Go to Settings.'; option.disabled = true; topicSelect.appendChild(option);
                     if (fetchBtn) fetchBtn.disabled = true;
                 }
             },
@@ -306,7 +299,7 @@
             fetchSummary: async function() {
                 const summaryContainer = document.getElementById('summary-container');
                 if (!summaryContainer) return;
-                summaryContainer.innerHTML = `<p>Loading AI summary...</p>`;
+                summaryContainer.innerHTML = `<p class="info-text">Loading AI summary...</p>`;
                 try {
                     const response = await fetch(`${this.config.API_URL}/summary`, { headers: { 'Authorization': this.idToken } });
                     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
@@ -350,14 +343,14 @@
                     const data = await response.json();
                     
                     this.renderChart(data);
-                    this.renderTable(days ? data : data.slice(-50));
+                    this.renderTable(days ? data.slice(-50) : data);
                     
                     info.textContent = data.length > 0 ? `Successfully fetched ${data.length} posts.` : 'Query returned no results.';
                 } catch (e) {
                     error.textContent = `An error occurred: ${e.message}`;
                     info.textContent = '';
                 } finally {
-                    if(fetchBtn) { fetchBtn.textContent = 'Fetch Data'; fetchBtn.disabled = false; }
+                    if(fetchBtn) { fetchBtn.disabled = false; Array.from(document.getElementsByClassName('range-btn')).forEach(b => b.disabled=false); }
                 }
             },
         };
