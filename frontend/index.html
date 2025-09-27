@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,45 +8,213 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-    
+
     <script src="config.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.12/dist/amazon-cognito-identity.min.js"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@6.3.12/dist/amazon-cognito-identity.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-    
+
     <style>
         :root {
-            --primary-color: #007bff; --primary-hover: #0056b3; --dark-blue: #172b4d;
-            --light-gray: #f4f5f7; --border-color: #dfe1e6; --white: #ffffff;
-            --text-color: #172b4d; --text-light: #505f79;
-            --positive: #00875a; --negative: #de350b; --neutral: #6b778c;
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --dark-blue: #172b4d;
+            --light-gray: #f4f5f7;
+            --border-color: #dfe1e6;
+            --white: #ffffff;
+            --text-color: #172b4d;
+            --text-light: #505f79;
+            --positive: #00875a;
+            --negative: #de350b;
+            --neutral: #6b778c;
         }
-        body { font-family: 'Inter', sans-serif; background-color: var(--light-gray); color: var(--text-color); margin: 0; }
-        .header { background-color: var(--white); color: var(--text-color); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .header h1 { font-size: 1.2em; margin: 0; font-weight: 700; }
-        .header button { padding: 6px 12px; font-size: 0.9em; background-color: #6c757d; border-radius: 6px; cursor: pointer; border: none; color: white; margin-left: 10px; }
-        .container { padding: 2em; max-width: 1200px; margin: 30px auto; background-color: var(--white); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        .auth-container { max-width: 400px; margin-top: 8vh; }
-        h1, h2 { color: var(--dark-blue); }
-        .query-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-        select { flex-grow: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1em; background-color: var(--white); }
-        input, textarea { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1em; background-color: var(--white); box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        button { padding: 10px 15px; background-color: var(--primary-color); color: var(--white); border: none; border-radius: 6px; cursor: pointer; font-size: 1em; font-weight: 500; white-space: nowrap; }
-        button:disabled { background-color: #a5adba; cursor: not-allowed; }
-        .link-button { background: none; border: none; color: var(--primary-color); cursor: pointer; padding: 0; text-align: center; margin-top: 1em; width: auto; }
-        .form-actions { display: flex; gap: 10px; margin-top: 1em; }
-        .secondary-button { background-color: #6c757d; }
-        .chart-container { position: relative; height: 40vh; width: 100%; margin: 2em 0; }
-        .table-container { overflow-x: auto; margin-top: 20px; border: 1px solid var(--border-color); border-radius: 6px; }
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        th, td { padding: 12px 15px; border-bottom: 1px solid var(--border-color); text-align: left; word-wrap: break-word; }
-        .text-cell { max-height: 90px; overflow-y: auto; display: block; white-space: pre-wrap; }
-        .sentiment-POSITIVE { color: var(--positive); font-weight: 500; }
-        .sentiment-NEGATIVE { color: var(--negative); font-weight: 500; }
-        .summary-box { background-color: #e6f7ff; border-left: 4px solid #007bff; padding: 15px; margin-bottom: 2em; border-radius: 4px; }
-        .error-text { color: var(--negative); font-weight: bold; margin-top: 1em; }
-        .info-text { color: #17a2b8; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--light-gray);
+            color: var(--text-color);
+            margin: 0;
+        }
+
+        .header {
+            background-color: var(--white);
+            color: var(--text-color);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .header h1 {
+            font-size: 1.2em;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .header button {
+            padding: 6px 12px;
+            font-size: 0.9em;
+            background-color: #6c757d;
+            border-radius: 6px;
+            cursor: pointer;
+            border: none;
+            color: white;
+            margin-left: 10px;
+        }
+
+        .container {
+            padding: 2em;
+            max-width: 1200px;
+            margin: 30px auto;
+            background-color: var(--white);
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .auth-container {
+            max-width: 400px;
+            margin-top: 8vh;
+        }
+
+        h1,
+        h2 {
+            color: var(--dark-blue);
+        }
+
+        .query-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        select {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 1em;
+            background-color: var(--white);
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 1em;
+            background-color: var(--white);
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: var(--primary-color);
+            color: var(--white);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        button:disabled {
+            background-color: #a5adba;
+            cursor: not-allowed;
+        }
+
+        .link-button {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            cursor: pointer;
+            padding: 0;
+            text-align: center;
+            margin-top: 1em;
+            width: auto;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 1em;
+        }
+
+        .secondary-button {
+            background-color: #6c757d;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 40vh;
+            width: 100%;
+            margin: 2em 0;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            text-align: left;
+            word-wrap: break-word;
+        }
+
+        .text-cell {
+            max-height: 90px;
+            overflow-y: auto;
+            display: block;
+            white-space: pre-wrap;
+        }
+
+        .sentiment-POSITIVE {
+            color: var(--positive);
+            font-weight: 500;
+        }
+
+        .sentiment-NEGATIVE {
+            color: var(--negative);
+            font-weight: 500;
+        }
+
+        .summary-box {
+            background-color: #e6f7ff;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin-bottom: 2em;
+            border-radius: 4px;
+        }
+
+        .error-text {
+            color: var(--negative);
+            font-weight: bold;
+            margin-top: 1em;
+        }
+
+        .info-text {
+            color: #17a2b8;
+        }
     </style>
 </head>
+
 <body>
     <div id="app-root"></div>
 
@@ -59,7 +228,7 @@
             },
             userPool: null, cognitoUser: null, idToken: null, tenantConfig: null, chart: null,
 
-            init: function() {
+            init: function () {
                 this.userPool = new AmazonCognitoIdentity.CognitoUserPool({ UserPoolId: this.config.USER_POOL_ID, ClientId: this.config.CLIENT_ID });
                 this.cognitoUser = this.userPool.getCurrentUser();
                 if (this.cognitoUser) {
@@ -75,7 +244,7 @@
                 } else { this.renderLogin(); }
             },
 
-            renderLogin: function() {
+            renderLogin: function () {
                 document.getElementById('app-root').innerHTML = `
                     <div class="container auth-container">
                         <h1>🌊 Welcome to EchoStream</h1><h2>Please Sign In</h2>
@@ -85,7 +254,7 @@
                     </div>`;
             },
 
-            renderSignUp: function() {
+            renderSignUp: function () {
                 document.getElementById('app-root').innerHTML = `
                     <div class="container auth-container">
                         <h1>Create Your Account</h1>
@@ -94,8 +263,8 @@
                         <p id="signup-error" class="error-text"></p><button class="link-button" onclick="app.renderLogin()">Already have an account? Sign In</button>
                     </div>`;
             },
-            
-            renderConfirm: function(username) {
+
+            renderConfirm: function (username) {
                 document.getElementById('app-root').innerHTML = `
                     <div class="container auth-container">
                         <h1>Confirm Your Account</h1><p>A confirmation code has been sent to your email address.</p>
@@ -105,7 +274,7 @@
                     </div>`;
             },
 
-            renderDashboard: function() {
+            renderDashboard: function () {
                 const claims = JSON.parse(atob(this.idToken.split('.')[1]));
                 const username = claims['cognito:username'];
                 document.getElementById('app-root').innerHTML = `
@@ -119,11 +288,12 @@
                     <div class="container" id="dashboard-container">
                         <div id="summary-container"></div><h2>Query Your Data</h2>
                         <div class="query-controls">
-                            <select id="topic-select"></select>
-                            <button class="range-btn" onclick="app.fetchData(7)">Last 7 Days</button>
-                            <button class="range-btn" onclick="app.fetchData(30)">Last 30 Days</button>
-                            <button id="fetch-btn" onclick="app.fetchData()">Latest 50</button>
-                        </div>
+                        <select id="topic-select"></select>
+                        <button class="range-btn" onclick="app.fetchData(7)">Last Week</button>
+                        <button class="range-btn" onclick="app.fetchData(30)">Last Month</button>
+                        <button class="range-btn" onclick="app.fetchData(365)">Last Year</button>
+                        <button id="fetch-btn" onclick="app.fetchData()">Latest 50</button>
+                    </div>
                         <p id="info" class="info-text"></p><p id="error" class="error-text"></p>
                         <div class="chart-container"><canvas id="sentimentChart"></canvas></div>
                         <h2>Recent Comments</h2>
@@ -132,7 +302,7 @@
                 this.populateTopicDropdown();
             },
 
-            renderSettings: function() {
+            renderSettings: function () {
                 const claims = JSON.parse(atob(this.idToken.split('.')[1]));
                 const username = claims['cognito:username'];
                 document.getElementById('app-root').innerHTML = `
@@ -155,8 +325,8 @@
                         </div>
                     </div>`;
             },
-            
-            populateTopicDropdown: function() {
+
+            populateTopicDropdown: function () {
                 const topicSelect = document.getElementById('topic-select');
                 if (!topicSelect) return;
                 topicSelect.innerHTML = '';
@@ -165,14 +335,14 @@
                     this.tenantConfig.subreddits.forEach(topic => {
                         const option = document.createElement('option'); option.value = topic; option.textContent = topic; topicSelect.appendChild(option);
                     });
-                     if (fetchBtn) fetchBtn.disabled = false;
+                    if (fetchBtn) fetchBtn.disabled = false;
                 } else {
                     const option = document.createElement('option'); option.textContent = 'No topics in watchlist. Go to Settings.'; option.disabled = true; topicSelect.appendChild(option);
                     if (fetchBtn) fetchBtn.disabled = true;
                 }
             },
-            
-            saveSettings: async function() {
+
+            saveSettings: async function () {
                 const saveBtn = document.getElementById('save-btn');
                 const info = document.getElementById('settings-info');
                 const error = document.getElementById('settings-error');
@@ -196,11 +366,11 @@
                     setTimeout(() => { this.renderDashboard(); this.fetchSummary(); }, 1000);
                 } catch (e) {
                     error.textContent = `Failed to save settings: ${e.message}`;
-                    if(saveBtn) { saveBtn.textContent = 'Save Changes'; saveBtn.disabled = false; }
+                    if (saveBtn) { saveBtn.textContent = 'Save Changes'; saveBtn.disabled = false; }
                 }
             },
 
-            signUp: function() {
+            signUp: function () {
                 const username = document.getElementById('signup-username').value;
                 const email = document.getElementById('signup-email').value;
                 const password = document.getElementById('signup-password').value;
@@ -214,7 +384,7 @@
                 });
             },
 
-            confirmSignUp: function() {
+            confirmSignUp: function () {
                 const username = document.getElementById('confirm-username').value;
                 const code = document.getElementById('confirm-code').value;
                 const confirmError = document.getElementById('confirm-error');
@@ -230,8 +400,8 @@
                     }
                 });
             },
-            
-            login: function() {
+
+            login: function () {
                 const username = document.getElementById('login-username').value;
                 const password = document.getElementById('login-password').value;
                 const loginError = document.getElementById('login-error');
@@ -247,7 +417,7 @@
                         this.renderDashboard();
                         await this.fetchSummary();
                     },
-                    onFailure: (err) => { 
+                    onFailure: (err) => {
                         loginError.textContent = err.message || JSON.stringify(err);
                         loginBtn.textContent = 'Login';
                         loginBtn.disabled = false;
@@ -255,23 +425,23 @@
                 });
             },
 
-            logout: function() {
+            logout: function () {
                 if (this.cognitoUser) { this.cognitoUser.signOut(); }
                 this.renderLogin();
             },
 
-            fetchTenantConfig: async function() {
+            fetchTenantConfig: async function () {
                 try {
                     const response = await fetch(`${this.config.API_URL}/config`, { headers: { 'Authorization': this.idToken } });
                     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                     this.tenantConfig = await response.json();
                 } catch (e) {
                     console.error('Failed to fetch tenant config:', e);
-                    this.tenantConfig = { subreddits: [] }; 
+                    this.tenantConfig = { subreddits: [] };
                 }
             },
 
-            fetchSummary: async function() {
+            fetchSummary: async function () {
                 const summaryContainer = document.getElementById('summary-container');
                 if (!summaryContainer) return;
                 summaryContainer.innerHTML = `<p class="info-text">Loading AI summary...</p>`;
@@ -291,15 +461,15 @@
                 }
             },
 
-            fetchData: async function(days = null) {
+            fetchData: async function (days = null) {
                 const topic = document.getElementById('topic-select').value;
                 if (!topic) return;
                 const fetchBtn = document.getElementById('fetch-btn');
                 const info = document.getElementById('info');
                 const error = document.getElementById('error');
                 info.textContent = 'Fetching data...';
-                if(fetchBtn) { fetchBtn.disabled = true; }
-                Array.from(document.getElementsByClassName('range-btn')).forEach(b => b.disabled=true);
+                if (fetchBtn) { fetchBtn.disabled = true; }
+                Array.from(document.getElementsByClassName('range-btn')).forEach(b => b.disabled = true);
 
                 let queryUrl = `${this.config.API_URL}/query?topic=${topic}`;
                 if (days) {
@@ -320,18 +490,18 @@
                     error.textContent = `An error occurred: ${e.message}`;
                     info.textContent = '';
                 } finally {
-                    if(fetchBtn) { fetchBtn.disabled = false; }
-                    Array.from(document.getElementsByClassName('range-btn')).forEach(b => b.disabled=false);
+                    if (fetchBtn) { fetchBtn.disabled = false; }
+                    Array.from(document.getElementsByClassName('range-btn')).forEach(b => b.disabled = false);
                 }
             },
 
-            renderTable: function(data) {
+            renderTable: function (data) {
                 const tableHeader = document.getElementById('table-header');
                 const tableBody = document.getElementById('table-body');
                 tableHeader.innerHTML = ''; tableBody.innerHTML = '';
                 if (data.length === 0) return;
                 const desiredHeaders = ['timestamp', 'author', 'text', 'sentiment', 'sentiment_score_positive', 'sentiment_score_negative'];
-                const displayHeaders = {'timestamp': 'Timestamp', 'author': 'Author', 'text': 'Comment', 'sentiment': 'Sentiment', 'sentiment_score_positive': 'Positive %', 'sentiment_score_negative': 'Negative %'};
+                const displayHeaders = { 'timestamp': 'Timestamp', 'author': 'Author', 'text': 'Comment', 'sentiment': 'Sentiment', 'sentiment_score_positive': 'Positive %', 'sentiment_score_negative': 'Negative %' };
                 tableHeader.innerHTML = desiredHeaders.map(h => `<th>${displayHeaders[h]}</th>`).join('');
                 tableBody.innerHTML = data.map(row => {
                     const cells = desiredHeaders.map(h => {
@@ -346,7 +516,7 @@
                 }).join('');
             },
 
-            renderChart: function(data) {
+            renderChart: function (data) {
                 const ctx = document.getElementById('sentimentChart');
                 if (!ctx) return;
                 if (this.chart) { this.chart.destroy(); }
@@ -373,7 +543,8 @@
                 });
             }
         };
-        window.onload = function() { app.init(); };
+        window.onload = function () { app.init(); };
     </script>
 </body>
+
 </html>

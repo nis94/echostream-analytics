@@ -43,8 +43,8 @@ def lambda_handler(event, context):
         if start_date and end_date:
             print(f"Querying for PK: {pk} between {start_date} and {end_date}")
             query_params["KeyConditionExpression"] &= Key("SK").between(start_date, end_date)
-            # For charts, we want oldest first
-            query_params["ScanIndexForward"] = True 
+            query_params["ScanIndexForward"] = True
+            query_params["Limit"] = 1000
         else:
             print(f"Querying for latest items for PK: {pk}")
             query_params["Limit"] = 50
