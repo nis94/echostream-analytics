@@ -78,8 +78,12 @@
                 } else { this.renderLogin(); }
             },
 
+            renderView: function(viewId, content) {
+                document.getElementById('app-root').innerHTML = content;
+            },
+
             renderLogin: function() {
-                document.getElementById('app-root').innerHTML = `
+                this.renderView('login-view', `
                     <div class="container auth-container">
                         <h1>🌊 Welcome to EchoStream</h1><h2>Please Sign In</h2>
                         <input type="text" id="login-username" placeholder="Username">
@@ -87,11 +91,11 @@
                         <button id="login-btn" onclick="app.login()">Login</button>
                         <p id="login-error" class="error-text"></p>
                         <button class="link-button" onclick="app.renderSignUp()">Don't have an account? Sign Up</button>
-                    </div>`;
+                    </div>`);
             },
 
             renderSignUp: function() {
-                document.getElementById('app-root').innerHTML = `
+                this.renderView('signup-view', `
                     <div class="container auth-container">
                         <h1>Create Your Account</h1>
                         <input type="text" id="signup-username" placeholder="Username">
@@ -100,11 +104,11 @@
                         <button id="signup-btn" onclick="app.signUp()">Register</button>
                         <p id="signup-error" class="error-text"></p>
                         <button class="link-button" onclick="app.renderLogin()">Already have an account? Sign In</button>
-                    </div>`;
+                    </div>`);
             },
             
             renderConfirm: function(username) {
-                document.getElementById('app-root').innerHTML = `
+                this.renderView('confirm-view', `
                     <div class="container auth-container">
                         <h1>Confirm Your Account</h1>
                         <p>A confirmation code has been sent to your email address.</p>
@@ -112,13 +116,13 @@
                         <input type="text" id="confirm-code" placeholder="Confirmation Code">
                         <button id="confirm-btn" onclick="app.confirmSignUp()">Confirm Account</button>
                         <p id="confirm-error" class="error-text"></p>
-                    </div>`;
+                    </div>`);
             },
 
             renderDashboard: function() {
                 const claims = JSON.parse(atob(this.idToken.split('.')[1]));
                 const username = claims['cognito:username'];
-                document.getElementById('app-root').innerHTML = `
+                this.renderView('dashboard-view', `
                     <div class="header">
                         <h1>🌊 EchoStream</h1>
                         <div style="display: flex; align-items: center;">
@@ -140,14 +144,14 @@
                         <div class="chart-container"><canvas id="sentimentChart"></canvas></div>
                         <h2>Recent Comments</h2>
                         <div class="table-container"><table id="results-table"><thead><tr id="table-header"></tr></thead><tbody id="table-body"></tbody></table></div>
-                    </div>`;
+                    </div>`);
                 this.populateTopicDropdown();
             },
 
             renderSettings: function() {
                 const claims = JSON.parse(atob(this.idToken.split('.')[1]));
                 const username = claims['cognito:username'];
-                document.getElementById('app-root').innerHTML = `
+                this.renderView('settings-view', `
                      <div class="header">
                         <h1>🌊 EchoStream</h1>
                         <div style="display: flex; align-items: center;">
@@ -167,7 +171,7 @@
                             <button id="save-btn" onclick="app.saveSettings()">Save Changes</button>
                             <button class="secondary-button" onclick="app.renderDashboard()">Cancel</button>
                         </div>
-                    </div>`;
+                    </div>`);
             },
             
             populateTopicDropdown: function() {
@@ -192,11 +196,9 @@
                 const error = document.getElementById('settings-error');
                 info.textContent = ''; error.textContent = '';
                 saveBtn.textContent = 'Saving...'; saveBtn.disabled = true;
-
                 const newName = document.getElementById('tenant-name').value;
                 const subredditsString = document.getElementById('subreddits').value;
                 const newSubreddits = subredditsString.split(',').map(s => s.trim()).filter(s => s);
-
                 try {
                     const response = await fetch(`${this.config.API_URL}/watchlist`, {
                         method: 'POST',
@@ -207,14 +209,12 @@
                         const errData = await response.json();
                         throw new Error(errData.error || `HTTP error! Status: ${response.status}`);
                     }
-                    
                     info.textContent = "Settings saved successfully! Refreshing dashboard...";
                     await this.fetchTenantConfig();
                     setTimeout(() => {
                         this.renderDashboard();
                         this.fetchSummary();
                     }, 1000);
-
                 } catch (e) {
                     error.textContent = `Failed to save settings: ${e.message}`;
                     if(saveBtn) { saveBtn.textContent = 'Save Changes'; saveBtn.disabled = false; }
@@ -228,7 +228,6 @@
                 const signupError = document.getElementById('signup-error');
                 const signupBtn = document.getElementById('signup-btn');
                 signupError.textContent = ''; signupBtn.textContent = 'Registering...'; signupBtn.disabled = true;
-
                 this.userPool.signUp(username, password, [new AmazonCognitoIdentity.CognitoUserAttribute({ Name: 'email', Value: email })], null, (err, result) => {
                     signupBtn.textContent = 'Register'; signupBtn.disabled = false;
                     if (err) { signupError.textContent = err.message || JSON.stringify(err); return; }
@@ -242,7 +241,6 @@
                 const confirmError = document.getElementById('confirm-error');
                 const confirmBtn = document.getElementById('confirm-btn');
                 confirmError.textContent = ''; confirmBtn.textContent = 'Confirming...'; confirmBtn.disabled = true;
-                
                 const cognitoUser = new AmazonCognitoIdentity.CognitoUser({ Username: username, Pool: this.userPool });
                 cognitoUser.confirmRegistration(code, true, (err, result) => {
                     confirmBtn.textContent = 'Confirm Account'; confirmBtn.disabled = false;
@@ -260,11 +258,9 @@
                 const loginError = document.getElementById('login-error');
                 const loginBtn = document.getElementById('login-btn');
                 loginError.textContent = ''; loginBtn.textContent = 'Logging in...'; loginBtn.disabled = true;
-                
                 const authDetails = new AmazonCognitoIdentity.AuthenticationDetails({ Username: username, Password: password });
                 const userData = { Username: username, Pool: this.userPool };
                 this.cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
-                
                 this.cognitoUser.authenticateUser(authDetails, {
                     onSuccess: async (result) => {
                         this.idToken = result.getIdToken().getJwtToken();
@@ -304,7 +300,6 @@
                     const response = await fetch(`${this.config.API_URL}/summary`, { headers: { 'Authorization': this.idToken } });
                     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                     const data = await response.json();
-                    
                     const formattedTime = data.updated_at !== "N/A" ? new Date(data.updated_at).toLocaleString() : "N/A";
                     summaryContainer.innerHTML = `
                         <div class="summary-box">
@@ -313,20 +308,19 @@
                             <span class="meta">Last updated: ${formattedTime}</span>
                         </div>`;
                 } catch (e) {
-                    summaryContainer.innerHTML = `<div class="summary-box"><p>Could not load AI summary. Please ensure the summarizer has run at least once.</p></div>`;
+                    summaryContainer.innerHTML = `<div class="summary-box"><p>Could not load AI summary.</p></div>`;
                 }
             },
 
             fetchData: async function(days = null) {
                 const topic = document.getElementById('topic-select').value;
                 if (!topic) return;
-                
                 const fetchBtn = document.getElementById('fetch-btn');
                 const info = document.getElementById('info');
                 const error = document.getElementById('error');
-                
                 info.textContent = 'Fetching data...';
-                if(fetchBtn) { fetchBtn.textContent = 'Fetching...'; fetchBtn.disabled = true; }
+                if(fetchBtn) { fetchBtn.disabled = true; }
+                Array.from(document.getElementsByClassName('range-btn')).forEach(b => b.disabled=true);
 
                 let queryUrl = `${this.config.API_URL}/query?topic=${topic}`;
                 if (days) {
@@ -339,19 +333,38 @@
                 try {
                     const response = await fetch(queryUrl, { headers: { 'Authorization': this.idToken } });
                     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                    
                     const data = await response.json();
-                    
                     this.renderChart(data);
                     this.renderTable(days ? data.slice(-50) : data);
-                    
                     info.textContent = data.length > 0 ? `Successfully fetched ${data.length} posts.` : 'Query returned no results.';
                 } catch (e) {
                     error.textContent = `An error occurred: ${e.message}`;
                     info.textContent = '';
                 } finally {
-                    if(fetchBtn) { fetchBtn.disabled = false; Array.from(document.getElementsByClassName('range-btn')).forEach(b => b.disabled=false); }
+                    if(fetchBtn) { fetchBtn.disabled = false; }
+                    Array.from(document.getElementsByClassName('range-btn')).forEach(b => b.disabled=false);
                 }
+            },
+
+            renderTable: function(data) {
+                const tableHeader = document.getElementById('table-header');
+                const tableBody = document.getElementById('table-body');
+                tableHeader.innerHTML = ''; tableBody.innerHTML = '';
+                if (data.length === 0) return;
+                const desiredHeaders = ['timestamp', 'author', 'text', 'sentiment', 'sentiment_score_positive', 'sentiment_score_negative'];
+                const displayHeaders = {'timestamp': 'Timestamp', 'author': 'Author', 'text': 'Comment', 'sentiment': 'Sentiment', 'sentiment_score_positive': 'Positive %', 'sentiment_score_negative': 'Negative %'};
+                tableHeader.innerHTML = desiredHeaders.map(h => `<th>${displayHeaders[h]}</th>`).join('');
+                tableBody.innerHTML = data.map(row => {
+                    const cells = desiredHeaders.map(h => {
+                        let value = row[h];
+                        if (h === 'text') return `<td><div class="text-cell" title="${value}">${value}</div></td>`;
+                        if (h.includes('score')) return `<td>${(parseFloat(value) * 100).toFixed(1)}%</td>`;
+                        if (h === 'sentiment') return `<td class="sentiment-${value}">${value}</td>`;
+                        if (h === 'timestamp') return `<td>${value.replace('T', ' ').replace('Z', '')}</td>`;
+                        return `<td>${value}</td>`;
+                    }).join('');
+                    return `<tr>${cells}</tr>`;
+                }).join('');
             },
         };
         window.onload = function() { app.init(); };
