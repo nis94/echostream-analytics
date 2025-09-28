@@ -23,7 +23,14 @@ def lambda_handler(event, context):
     """
     print(f"Received SNS event: {event}")
     credentials = get_reddit_credentials()
-    reddit = praw.Reddit(**credentials) # PRAW v7+ accepts kwargs directly
+    
+    reddit = praw.Reddit(
+        client_id=credentials['REDDIT_CLIENT_ID'],
+        client_secret=credentials['REDDIT_CLIENT_SECRET'],
+        user_agent=credentials['REDDIT_USER_AGENT'],
+        username=credentials['REDDIT_USERNAME'],
+        password=credentials['REDDIT_PASSWORD']
+    )
     
     messages_to_send = []
 
