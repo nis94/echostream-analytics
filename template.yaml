@@ -133,6 +133,7 @@ Resources:
     UpdateReplacePolicy: Delete
     Type: AWS::S3::Bucket
     Properties:
+      AutoDeleteObjects: true
       BucketName: !Sub "echostream-datalake-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -167,6 +168,8 @@ Resources:
   # DynamoDB Table for Tenants Data
   # ------------------------------------------------------------
   TenantsTable:
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: EchoStream-TenantsTable
@@ -181,10 +184,11 @@ Resources:
   # ------------------------------------------------------------
   # CloudWatch Log Groups with Retention
   # ------------------------------------------------------------
-  ProducerLambdaLogGroup:
+  
+  RedditCollectorLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /aws/lambda/EchoStream-Producer
+      LogGroupName: /aws/lambda/EchoStream-RedditCollector
       RetentionInDays: 7
 
   ProcessorLambdaLogGroup:
@@ -202,81 +206,48 @@ Resources:
   # ------------------------------------------------------------
   # Lambda Functions and Roles
   # ------------------------------------------------------------
-  ProducerLambdaFunction:
+
+  RedditCollectorLambda:
     Type: AWS::Serverless::Function
-    DependsOn: ProducerLambdaLogGroup
+    DependsOn: RedditCollectorLogGroup
     Properties:
-      FunctionName: EchoStream-Producer
-      CodeUri: producer/
+      FunctionName: EchoStream-RedditCollector
+      CodeUri: reddit-collector/
       Handler: app.lambda_handler
-      Role: !GetAtt ProducerLambdaRole.Arn
-      Timeout: 30
+      Role: !GetAtt RedditCollectorLambdaRole.Arn
+      Timeout: 60
       Environment:
         Variables:
           QUEUE_URL: !Ref IngestionQueue
-          SECRET_NAME: echostream/reddit-credentials-v1
-          TENANTS_TABLE_NAME: !Ref TenantsTable
+          SECRET_NAME: !Ref RedditCredentialsSecret
+      Events:
+        JobEvent:
+          Type: SNS
+          Properties:
+            Topic: !Ref IngestionJobTopic
 
-  ProducerLambdaRole:
-      Type: AWS::IAM::Role
-      Properties:
-          AssumeRolePolicyDocument:
+  RedditCollectorLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
               Version: '2012-10-17'
               Statement:
                   - Effect: Allow
                     Principal: { Service: [lambda.amazonaws.com] }
                     Action: [sts:AssumeRole]
-          ManagedPolicyArns:
-              - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-          Policies:
-            - PolicyName: EchoStreamProducerPolicy
-              PolicyDocument:
-                Version: '2012-10-17'
-                Statement:
-                  - Effect: Allow
-                    Action:
-                      - sqs:SendMessage
-                    Resource: !GetAtt IngestionQueue.Arn
-                  - Effect: Allow # Statement for Secrets Manager
-                    Action:
-                      - secretsmanager:GetSecretValue
-                    Resource: !Ref RedditCredentialsSecret # Now references our new secret resource
-                  - Effect: Allow
-                    Action:
-                      - dynamodb:Scan
-                    Resource: !GetAtt TenantsTable.Arn
-
-  ProducerSchedule:
-    Type: AWS::Scheduler::Schedule
-    Properties:
-      Name: EchoStream-15-Minute-Poll-Schedule
-      Description: "Triggers the Producer Lambda every 15 minutes to fetch new data."
-      ScheduleExpression: "rate(1 hour)"
-      FlexibleTimeWindow:
-        Mode: "OFF"
-      State: "ENABLED"
-      Target:
-        Arn: !GetAtt ProducerLambdaFunction.Arn
-        RoleArn: !GetAtt ProducerScheduleRole.Arn
-
-  ProducerScheduleRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal: { Service: [scheduler.amazonaws.com] }
-            Action: [sts:AssumeRole]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
-        - PolicyName: EchoStreamProducerSchedulerInvokePolicy
+        - PolicyName: EchoStreamRedditCollectorPolicy
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
-                Action:
-                  - lambda:InvokeFunction
-                Resource: !GetAtt ProducerLambdaFunction.Arn
+                Action: [sqs:SendMessage]
+                Resource: !GetAtt IngestionQueue.Arn
+              - Effect: Allow
+                Action: [secretsmanager:GetSecretValue]
+                Resource: !Ref RedditCredentialsSecret
 
   ProcessorLambdaFunction:
     Type: AWS::Serverless::Function
@@ -421,6 +392,7 @@ Resources:
     UpdateReplacePolicy: Delete
     Type: AWS::S3::Bucket
     Properties:
+      AutoDeleteObjects: true
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: index.html
@@ -822,6 +794,76 @@ Resources:
                   - cognito-idp:AdminAddUserToGroup
                 Resource: !GetAtt UserPool.Arn
 
+  IngestionJobTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: EchoStream-Ingestion-Job-Topic
+
+  DispatcherLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: EchoStream-Dispatcher
+      CodeUri: dispatcher/
+      Handler: app.lambda_handler
+      Role: !GetAtt DispatcherLambdaRole.Arn
+      Environment:
+        Variables:
+          TENANTS_TABLE_NAME: !Ref TenantsTable
+          JOB_TOPIC_ARN: !Ref IngestionJobTopic
+
+  DispatcherLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [lambda.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: EchoStreamDispatcherPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [dynamodb:Scan]
+                Resource: !GetAtt TenantsTable.Arn
+              - Effect: Allow
+                Action: [sns:Publish]
+                Resource: !Ref IngestionJobTopic
+
+  DispatcherSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: EchoStream-Hourly-Dispatch-Schedule
+      Description: "Triggers the Dispatcher Lambda every hour."
+      ScheduleExpression: "rate(1 hour)"
+      FlexibleTimeWindow: { Mode: "OFF" }
+      State: "ENABLED"
+      Target:
+        Arn: !GetAtt DispatcherLambdaFunction.Arn
+        RoleArn: !GetAtt DispatcherScheduleRole.Arn
+
+  DispatcherScheduleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [scheduler.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      Policies:
+        - PolicyName: EchoStreamDispatcherSchedulerInvokePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [lambda:InvokeFunction]
+                Resource: !GetAtt DispatcherLambdaFunction.Arn
+
 Outputs:
   HttpApiUrl:
     Description: "The invoke URL for the HTTP API"
@@ -832,9 +874,9 @@ Outputs:
   UserPoolClientId:
     Description: "The ID of the Cognito User Pool Client"
     Value: !Ref UserPoolClient
-  ProducerLambdaName:
+  RedditCollectorLambdaName:
     Description: "The name of the Producer Lambda Function"
-    Value: !Ref ProducerLambdaFunction
+    Value: !Ref RedditCollectorLambda
   RedditCredentialsSecretArn:
     Description: "The ARN of the Reddit credentials secret"
     Value: !Ref RedditCredentialsSecret

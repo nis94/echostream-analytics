@@ -1,4 +1,3 @@
-# In watchlist/app.py
 import os
 import json
 import boto3
@@ -9,33 +8,34 @@ tenants_table = dynamodb.Table(TENANTS_TABLE_NAME)
 
 def lambda_handler(event, context):
     """
-    Handles secure POST requests to update a tenant's watchlist (subreddits)
-    and tenant_name.
+    Handles secure POST requests to update a tenant's watchlist
+    (a list of source/topic objects) and tenant_name.
     """
     print(f"Received event: {event}")
     
     try:
-        # Get the tenant_id securely from the user's validated token
         claims = event['requestContext']['authorizer']['jwt']['claims']
         tenant_id = claims['custom:tenant_id']
         
-        # Parse the updates from the request body
         body = json.loads(event.get("body", "{}"))
         new_tenant_name = body.get("tenant_name")
-        new_subreddits = body.get("subreddits")
+        new_watchlist = body.get("watchlist") # Expecting a list of objects now
 
-        if not new_tenant_name or not isinstance(new_subreddits, list):
-            return {"statusCode": 400, "body": json.dumps({"error": "tenant_name and a list of subreddits are required."})}
+        # Basic validation for the new structure
+        if not new_tenant_name or not isinstance(new_watchlist, list):
+            return {"statusCode": 400, "body": json.dumps({"error": "tenant_name and a list of watchlist items are required."})}
+        for item in new_watchlist:
+            if not all(k in item for k in ("source", "topic")):
+                return {"statusCode": 400, "body": json.dumps({"error": "Each watchlist item must contain 'source' and 'topic'."})}
 
         print(f"Updating watchlist for tenant_id: {tenant_id}")
 
-        # Use UpdateItem to safely update the tenant's configuration
         tenants_table.update_item(
             Key={'tenant_id': tenant_id},
-            UpdateExpression="SET tenant_name = :n, subreddits = :s",
+            UpdateExpression="SET tenant_name = :n, watchlist = :w",
             ExpressionAttributeValues={
                 ':n': new_tenant_name,
-                ':s': new_subreddits
+                ':w': new_watchlist
             }
         )
         
