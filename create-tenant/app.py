@@ -40,7 +40,6 @@ def lambda_handler(event, context):
                 'tenant_id': tenant_id,
                 'tenant_name': tenant_name,
                 'is_active': True,
-                'subreddits': [], # Start with an empty watchlist
                 'contact_email': user_email
             }
         )

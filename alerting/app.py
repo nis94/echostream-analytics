@@ -107,13 +107,17 @@ def lambda_handler(event, context):
     previous_window_start = (now - timedelta(hours=24)).isoformat()
 
     for tenant in active_tenants:
-        for topic in tenant.get('subreddits', []):
+        # --- FIX: Iterate through the new 'watchlist' attribute ---
+        for item in tenant.get('watchlist', []):
+            topic = item.get('topic')
+            if not topic:
+                continue
+
             try:
                 # Get sentiment for the current and previous periods
                 new_score = get_average_sentiment(tenant['tenant_id'], topic, current_window_start, now.isoformat())
                 old_score = get_average_sentiment(tenant['tenant_id'], topic, previous_window_start, current_window_start)
 
-                # If we have data for both periods, check for a spike
                 if new_score is not None and old_score is not None:
                     # TRIGGER LOGIC: Alert if sentiment is now negative AND has dropped by more than 0.3 points
                     is_now_negative = new_score < -0.1

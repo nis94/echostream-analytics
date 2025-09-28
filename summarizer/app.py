@@ -27,16 +27,25 @@ def get_active_tenants():
     return tenants
 
 def get_recent_posts_for_tenant(tenant):
+    """Queries the main data table for recent posts for a given tenant."""
     print(f"Fetching recent posts for tenant: {tenant['tenant_id']}")
     all_posts = []
+    # Calculate the timestamp for 24 hours ago
     time_24_hours_ago = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
-    for topic in tenant.get('subreddits', []):
+
+    # --- FIX: Iterate through the new 'watchlist' attribute ---
+    for item in tenant.get('watchlist', []):
+        topic = item.get('topic')
+        if not topic:
+            continue
+            
         pk = f"{tenant['tenant_id']}#{topic}"
         response = data_table.query(
             KeyConditionExpression=Key("PK").eq(pk) & Key("SK").gt(time_24_hours_ago),
-            ScanIndexForward=False
+            ScanIndexForward=False # Newest first
         )
         all_posts.extend(response.get('Items', []))
+    
     print(f"Found {len(all_posts)} posts in the last 24 hours for this tenant.")
     return all_posts
 
