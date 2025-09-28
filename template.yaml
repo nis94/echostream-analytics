@@ -862,6 +862,61 @@ Resources:
                 Action: [lambda:InvokeFunction]
                 Resource: !GetAtt DispatcherLambdaFunction.Arn
 
+  NewsApiSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: echostream/newsapi-credentials
+      Description: "Stores the API key for NewsAPI.org."
+      SecretString: '{"NEWS_API_KEY": "REPLACE_IN_CONSOLE"}'
+
+  NewsCollectorLambda:
+    Type: AWS::Serverless::Function
+    DependsOn: NewsCollectorLogGroup
+    Properties:
+      FunctionName: EchoStream-NewsCollector
+      CodeUri: news-collector/
+      Handler: app.lambda_handler
+      Role: !GetAtt NewsCollectorLambdaRole.Arn
+      Timeout: 60
+      Environment:
+        Variables:
+          QUEUE_URL: !Ref IngestionQueue
+          SECRET_NAME: !Ref NewsApiSecret
+      Events:
+        JobEvent:
+          Type: SNS
+          Properties:
+            Topic: !Ref IngestionJobTopic
+
+  NewsCollectorLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: [lambda.amazonaws.com] }
+            Action: [sts:AssumeRole]
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: EchoStreamNewsCollectorPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [sqs:SendMessage]
+                Resource: !GetAtt IngestionQueue.Arn
+              - Effect: Allow
+                Action: [secretsmanager:GetSecretValue]
+                Resource: !Ref NewsApiSecret
+
+  NewsCollectorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/EchoStream-NewsCollector
+      RetentionInDays: 7
+
 Outputs:
   HttpApiUrl:
     Description: "The invoke URL for the HTTP API"
@@ -884,3 +939,6 @@ Outputs:
   FrontendBucketName:
     Description: "The name of the S3 bucket for the frontend website"
     Value: !Ref FrontendBucket
+  NewsApiSecretArn:
+    Description: "The ARN of the NewsAPI credentials secret"
+    Value: !Ref NewsApiSecret

@@ -76,7 +76,7 @@
                                 await this.fetchTenantConfig();
                                 this.renderDashboard();
                                 await this.fetchSummary();
-                                await this.fetchData();
+                                await this.fetchData(7);
                             } else {
                                 this.renderCreateTenant();
                             }
@@ -134,11 +134,13 @@
                         <h1>🌊 EchoStream</h1>
                         <div style="display: flex; align-items: center;">
                            <span class="user-info" style="margin-right:10px;">Welcome, ${username}</span>
-                           <button onclick="app.renderSettings()">Settings</button><button onclick="app.logout()">Logout</button>
+                           <button onclick="app.renderSettings()">Settings</button>
+                           <button onclick="app.logout()">Logout</button>
                         </div>
                     </div>
                     <div class="container" id="dashboard-container">
-                        <div id="summary-container"></div><h2>Query Your Data</h2>
+                        <div id="summary-container"></div>
+                        <h2>Query Your Data</h2>
                         <div class="query-controls">
                             <select id="topic-select"></select>
                             <button class="range-btn" onclick="app.fetchData(7)">Last Week</button>
@@ -182,10 +184,8 @@
                         <h2>Settings</h2>
                         <label for="tenant-name">Team Name</label>
                         <input type="text" id="tenant-name" value="${this.tenantConfig.tenant_name || ''}" ${!this.isAdmin ? 'disabled' : ''}>
-                        <label for="watchlist-table">Watchlist</label>
-                        <div class="table-container">
-                            <table id="watchlist-table"></table>
-                        </div>
+                        <h3>Current Watchlist</h3>
+                        <div class="table-container"><table id="watchlist-table"></table></div>
                         <div id="add-item-form-container"></div>
                         <p id="settings-info" class="info-text"></p><p id="settings-error" class="error-text"></p>
                         <div class="form-actions">
@@ -193,18 +193,21 @@
                         </div>
                         ${adminSection}
                     </div>`);
-                if (this.isAdmin) {
+                if(this.isAdmin) {
                     this.renderWatchlistTable();
                     document.getElementById('add-item-form-container').innerHTML = `
                         <h3>Add to Watchlist</h3>
                         <div class="add-item-form">
-                            <select id="new-item-source"><option value="reddit">Reddit Subreddit</option></select>
+                            <select id="new-item-source">
+                                <option value="reddit">Reddit Subreddit</option>
+                                <option value="news">News Keyword</option>
+                            </select>
                             <input type="text" id="new-item-topic" placeholder="e.g., technology">
                             <button onclick="app.addWatchlistItem()">Add</button>
                         </div>`;
                 }
             },
-
+            
             renderCreateTenant: function() {
                 const claims = JSON.parse(atob(this.idToken.split('.')[1]));
                 const username = claims['cognito:username'];
@@ -229,21 +232,117 @@
                 const topicSelect = document.getElementById('topic-select');
                 if (!topicSelect) return;
                 topicSelect.innerHTML = '';
-                const fetchBtn = document.getElementById('fetch-btn');
                 const rangeBtns = document.getElementsByClassName('range-btn');
                 const watchlist = (this.tenantConfig && this.tenantConfig.watchlist) || [];
-                const redditTopics = watchlist.filter(item => item.source === 'reddit').map(item => item.topic);
-
-                if (redditTopics.length > 0) {
-                    redditTopics.forEach(topic => {
-                        const option = document.createElement('option'); option.value = topic; option.textContent = topic; topicSelect.appendChild(option);
+                
+                if (watchlist.length > 0) {
+                    watchlist.forEach(item => {
+                        const option = document.createElement('option'); 
+                        option.value = item.topic; 
+                        option.textContent = `${item.topic} (${item.source})`; 
+                        topicSelect.appendChild(option);
                     });
-                    if (fetchBtn) fetchBtn.disabled = false;
-                    Array.from(rangeBtns).forEach(b => b.disabled = false);
+                     Array.from(rangeBtns).forEach(b => b.disabled = false);
                 } else {
-                    const option = document.createElement('option'); option.textContent = 'No topics in watchlist. Go to Settings.'; option.disabled = true; topicSelect.appendChild(option);
-                    if (fetchBtn) fetchBtn.disabled = true;
+                    const option = document.createElement('option'); 
+                    option.textContent = 'No topics in watchlist. Go to Settings.'; 
+                    option.disabled = true; 
+                    topicSelect.appendChild(option);
                     Array.from(rangeBtns).forEach(b => b.disabled = true);
+                }
+            },
+            
+            createTenant: async function() {
+                const tenantName = document.getElementById('new-tenant-name').value;
+                const errorEl = document.getElementById('create-tenant-error');
+                const btn = document.getElementById('create-tenant-btn');
+                errorEl.textContent = '';
+                if (!tenantName) { errorEl.textContent = 'Team name cannot be empty.'; return; }
+                btn.textContent = 'Creating...'; btn.disabled = true;
+                try {
+                    await fetch(`${this.config.API_URL}/tenants`, {
+                        method: 'POST', headers: { 'Authorization': this.idToken, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tenant_name: tenantName })
+                    });
+                    alert('Team created successfully! Please log in again to refresh your session.');
+                    this.logout();
+                } catch (e) {
+                    errorEl.textContent = e.message;
+                    btn.textContent = 'Create Team'; btn.disabled = false;
+                }
+            },
+
+            renderWatchlistTable: function() {
+                const table = document.getElementById('watchlist-table');
+                if(!table) return;
+                let tableHTML = `<thead><tr><th>Source</th><th>Topic</th><th>Action</th></tr></thead><tbody>`;
+                (this.tenantConfig.watchlist || []).forEach((item, index) => {
+                    tableHTML += `<tr><td>${item.source}</td><td>${item.topic}</td><td><button class="delete-btn" onclick="app.deleteWatchlistItem(${index})">Delete</button></td></tr>`;
+                });
+                tableHTML += `</tbody>`;
+                table.innerHTML = tableHTML;
+            },
+            
+            addWatchlistItem: function() {
+                const source = document.getElementById('new-item-source').value;
+                const topic = document.getElementById('new-item-topic').value;
+                if (!topic) return;
+                if (!this.tenantConfig.watchlist) this.tenantConfig.watchlist = [];
+                this.tenantConfig.watchlist.push({ source, topic });
+                document.getElementById('new-item-topic').value = '';
+                this.renderWatchlistTable();
+            },
+
+            deleteWatchlistItem: function(index) {
+                if (!this.tenantConfig.watchlist) return;
+                this.tenantConfig.watchlist.splice(index, 1);
+                this.renderWatchlistTable();
+            },
+            
+            saveSettings: async function() {
+                const saveBtn = document.getElementById('save-btn');
+                const info = document.getElementById('settings-info');
+                const error = document.getElementById('settings-error');
+                info.textContent = ''; error.textContent = '';
+                saveBtn.textContent = 'Saving...'; saveBtn.disabled = true;
+                const newName = document.getElementById('tenant-name').value;
+                try {
+                    await fetch(`${this.config.API_URL}/watchlist`, {
+                        method: 'POST',
+                        headers: { 'Authorization': this.idToken, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tenant_name: newName, watchlist: this.tenantConfig.watchlist })
+                    });
+                    info.textContent = "Settings saved successfully!";
+                    await this.fetchTenantConfig();
+                } catch (e) {
+                    error.textContent = `Failed to save settings: ${e.message}`;
+                } finally {
+                    if(saveBtn) { saveBtn.textContent = 'Save Changes'; saveBtn.disabled = false; }
+                }
+            },
+
+            inviteUser: async function() {
+                const inviteBtn = document.getElementById('invite-btn');
+                const info = document.getElementById('invite-info');
+                const error = document.getElementById('invite-error');
+                info.textContent = ''; error.textContent = '';
+                inviteBtn.textContent = 'Inviting...'; inviteBtn.disabled = true;
+                const email = document.getElementById('invite-email').value;
+                try {
+                    const response = await fetch(`${this.config.API_URL}/users/invite`, {
+                        method: 'POST',
+                        headers: { 'Authorization': this.idToken, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: email })
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || `HTTP error! Status: ${response.status}`);
+                    info.textContent = data.message;
+                    document.getElementById('invite-email').value = '';
+                } catch(e) {
+                    error.textContent = `Failed to invite user: ${e.message}`;
+                } finally {
+                    inviteBtn.textContent = 'Send Invitation';
+                    inviteBtn.disabled = false;
                 }
             },
             
@@ -312,99 +411,6 @@
                     this.tenantConfig = null; 
                 }
             },
-            
-            createTenant: async function() {
-                const tenantName = document.getElementById('new-tenant-name').value;
-                const errorEl = document.getElementById('create-tenant-error');
-                const btn = document.getElementById('create-tenant-btn');
-                errorEl.textContent = '';
-                if (!tenantName) { errorEl.textContent = 'Team name cannot be empty.'; return; }
-                btn.textContent = 'Creating...'; btn.disabled = true;
-                try {
-                    await fetch(`${this.config.API_URL}/tenants`, {
-                        method: 'POST', headers: { 'Authorization': this.idToken, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tenant_name: tenantName })
-                    });
-                    alert('Team created successfully! Please log in again to access your dashboard.');
-                    this.logout();
-                } catch (e) {
-                    errorEl.textContent = e.message;
-                    btn.textContent = 'Create Team'; btn.disabled = false;
-                }
-            },
-
-            renderWatchlistTable: function() {
-                const table = document.getElementById('watchlist-table');
-                if(!table) return;
-                let tableHTML = `<thead><tr><th>Source</th><th>Topic</th><th>Action</th></tr></thead><tbody>`;
-                (this.tenantConfig.watchlist || []).forEach((item, index) => {
-                    tableHTML += `<tr><td>${item.source}</td><td>${item.topic}</td><td><button class="delete-btn" onclick="app.deleteWatchlistItem(${index})">Delete</button></td></tr>`;
-                });
-                tableHTML += `</tbody>`;
-                table.innerHTML = tableHTML;
-            },
-            
-            addWatchlistItem: function() {
-                const source = document.getElementById('new-item-source').value;
-                const topic = document.getElementById('new-item-topic').value;
-                if (!topic) return;
-                if (!this.tenantConfig.watchlist) this.tenantConfig.watchlist = [];
-                this.tenantConfig.watchlist.push({ source, topic });
-                document.getElementById('new-item-topic').value = '';
-                this.renderWatchlistTable();
-            },
-
-            deleteWatchlistItem: function(index) {
-                if (!this.tenantConfig.watchlist) return;
-                this.tenantConfig.watchlist.splice(index, 1);
-                this.renderWatchlistTable();
-            },
-            
-            saveSettings: async function() {
-                const saveBtn = document.getElementById('save-btn');
-                const info = document.getElementById('settings-info');
-                const error = document.getElementById('settings-error');
-                info.textContent = ''; error.textContent = '';
-                saveBtn.textContent = 'Saving...'; saveBtn.disabled = true;
-                const newName = document.getElementById('tenant-name').value;
-                try {
-                    await fetch(`${this.config.API_URL}/watchlist`, {
-                        method: 'POST',
-                        headers: { 'Authorization': this.idToken, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ tenant_name: newName, watchlist: this.tenantConfig.watchlist })
-                    });
-                    info.textContent = "Settings saved successfully!";
-                } catch (e) {
-                    error.textContent = `Failed to save settings: ${e.message}`;
-                } finally {
-                    if(saveBtn) { saveBtn.textContent = 'Save Changes'; saveBtn.disabled = false; }
-                }
-            },
-            
-            inviteUser: async function() {
-                const inviteBtn = document.getElementById('invite-btn');
-                const info = document.getElementById('invite-info');
-                const error = document.getElementById('invite-error');
-                info.textContent = ''; error.textContent = '';
-                inviteBtn.textContent = 'Inviting...'; inviteBtn.disabled = true;
-                const email = document.getElementById('invite-email').value;
-                try {
-                    const response = await fetch(`${this.config.API_URL}/users/invite`, {
-                        method: 'POST',
-                        headers: { 'Authorization': this.idToken, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: email })
-                    });
-                    const data = await response.json();
-                    if (!response.ok) throw new Error(data.error || `HTTP error! Status: ${response.status}`);
-                    info.textContent = data.message;
-                    document.getElementById('invite-email').value = '';
-                } catch(e) {
-                    error.textContent = `Failed to invite user: ${e.message}`;
-                } finally {
-                    inviteBtn.textContent = 'Send Invitation';
-                    inviteBtn.disabled = false;
-                }
-            },
 
             fetchSummary: async function() {
                 const summaryContainer = document.getElementById('summary-container');
@@ -429,13 +435,11 @@
             fetchData: async function(days = null) {
                 const topic = document.getElementById('topic-select').value;
                 if (!topic) return;
-                const fetchBtn = document.getElementById('fetch-btn');
-                const rangeBtns = document.getElementsByClassName('range-btn');
+                const fetchBtns = document.querySelectorAll('.range-btn, #fetch-btn');
                 const info = document.getElementById('info');
                 const error = document.getElementById('error');
                 info.textContent = 'Fetching data...';
-                if(fetchBtn) { fetchBtn.disabled = true; }
-                Array.from(rangeBtns).forEach(b => b.disabled = true);
+                fetchBtns.forEach(b => b.disabled = true);
                 let queryUrl = `${this.config.API_URL}/query?topic=${topic}`;
                 if (days) {
                     const endDate = new Date();
@@ -454,8 +458,7 @@
                     error.textContent = `An error occurred: ${e.message}`;
                     info.textContent = '';
                 } finally {
-                    if(fetchBtn) { fetchBtn.disabled = false; }
-                    Array.from(rangeBtns).forEach(b => b.disabled = false);
+                    fetchBtns.forEach(b => b.disabled = false);
                 }
             },
 
