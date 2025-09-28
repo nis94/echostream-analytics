@@ -26,7 +26,7 @@
         .header button { padding: 6px 12px; font-size: 0.9em; background-color: #6c757d; border-radius: 6px; cursor: pointer; border: none; color: white; margin-left: 10px; }
         .container { padding: 2em; max-width: 1200px; margin: 30px auto; background-color: var(--white); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .auth-container { max-width: 400px; margin-top: 8vh; text-align: center; }
-        h1, h2 { color: var(--dark-blue); }
+        h1, h2, h3 { color: var(--dark-blue); }
         .query-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
         select { flex-grow: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1em; background-color: var(--white); }
         input, textarea { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 1em; background-color: var(--white); box-sizing: border-box; font-family: 'Inter', sans-serif; }
@@ -45,10 +45,12 @@
         .summary-box { background-color: #e6f7ff; border-left: 4px solid #007bff; padding: 15px; margin-bottom: 2em; border-radius: 4px; }
         .error-text { color: var(--negative); font-weight: bold; margin-top: 1em; }
         .info-text { color: #17a2b8; }
+        .success-text { color: var(--positive); }
     </style>
 </head>
 <body>
     <div id="app-root"></div>
+
     <script>
         const app = {
             config: {
@@ -57,7 +59,7 @@
                 API_URL: window.APP_CONFIG.ApiUrl,
                 REGION: window.APP_CONFIG.Region
             },
-            userPool: null, cognitoUser: null, idToken: null, tenantConfig: null, chart: null,
+            userPool: null, cognitoUser: null, idToken: null, tenantConfig: null, chart: null, isAdmin: false,
 
             init: function() {
                 this.userPool = new AmazonCognitoIdentity.CognitoUserPool({ UserPoolId: this.config.USER_POOL_ID, ClientId: this.config.CLIENT_ID });
@@ -67,6 +69,7 @@
                         if (session && session.isValid()) {
                             this.idToken = session.getIdToken().getJwtToken();
                             const claims = JSON.parse(atob(this.idToken.split('.')[1]));
+                            this.isAdmin = (claims['cognito:groups'] || []).includes('admins');
                             if (claims['custom:tenant_id']) {
                                 await this.fetchTenantConfig();
                                 this.renderDashboard();
@@ -135,6 +138,7 @@
                             <button class="range-btn" onclick="app.fetchData(7)">Last Week</button>
                             <button class="range-btn" onclick="app.fetchData(30)">Last Month</button>
                             <button class="range-btn" onclick="app.fetchData(365)">Last Year</button>
+                            <button id="fetch-btn" onclick="app.fetchData()">Latest 50</button>
                         </div>
                         <p id="info" class="info-text"></p><p id="error" class="error-text"></p>
                         <div class="chart-container"><canvas id="sentimentChart"></canvas></div>
@@ -147,6 +151,16 @@
             renderSettings: function() {
                 const claims = JSON.parse(atob(this.idToken.split('.')[1]));
                 const username = claims['cognito:username'];
+                const adminSection = this.isAdmin ? `
+                    <hr style="margin: 2em 0;">
+                    <h3>Team Management (Admin)</h3>
+                    <p>Invite a new user to join your team. They will be added as a member and will be able to view this tenant's data.</p>
+                    <label for="invite-email">User Email to Invite</label>
+                    <input type="email" id="invite-email" placeholder="new.user@example.com">
+                    <button id="invite-btn" onclick="app.inviteUser()">Send Invitation</button>
+                    <p id="invite-info" class="success-text"></p><p id="invite-error" class="error-text"></p>
+                ` : '';
+
                 document.getElementById('app-root').innerHTML = `
                      <div class="header">
                         <h1>🌊 EchoStream</h1>
@@ -159,12 +173,13 @@
                         <label for="tenant-name">Team Name</label>
                         <input type="text" id="tenant-name" value="${this.tenantConfig.tenant_name || ''}">
                         <label for="subreddits">Subreddits to Monitor (comma-separated)</label>
-                        <textarea id="subreddits">${(this.tenantConfig.subreddits || []).join(', ')}</textarea>
+                        <textarea id="subreddits" ${!this.isAdmin ? 'disabled' : ''}>${(this.tenantConfig.subreddits || []).join(', ')}</textarea>
                         <p id="settings-info" class="info-text"></p><p id="settings-error" class="error-text"></p>
                         <div class="form-actions">
-                            <button id="save-btn" onclick="app.saveSettings()">Save Changes</button>
-                            <button class="secondary-button" onclick="app.renderDashboard()">Cancel</button>
+                            <button id="save-btn" onclick="app.saveSettings()" ${!this.isAdmin ? 'disabled' : ''}>Save Changes</button>
+                            <button class="secondary-button" onclick="app.renderDashboard()">Back to Dashboard</button>
                         </div>
+                        ${adminSection}
                     </div>`;
             },
             
@@ -188,6 +203,32 @@
                     </div>`;
             },
             
+            inviteUser: async function() {
+                const inviteBtn = document.getElementById('invite-btn');
+                const info = document.getElementById('invite-info');
+                const error = document.getElementById('invite-error');
+                info.textContent = ''; error.textContent = '';
+                inviteBtn.textContent = 'Inviting...'; inviteBtn.disabled = true;
+                const email = document.getElementById('invite-email').value;
+
+                try {
+                    const response = await fetch(`${this.config.API_URL}/users/invite`, {
+                        method: 'POST',
+                        headers: { 'Authorization': this.idToken, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: email })
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || `HTTP error! Status: ${response.status}`);
+                    info.textContent = data.message;
+                    document.getElementById('invite-email').value = ''; // Clear input on success
+                } catch(e) {
+                    error.textContent = `Failed to invite user: ${e.message}`;
+                } finally {
+                    inviteBtn.textContent = 'Send Invitation';
+                    inviteBtn.disabled = false;
+                }
+            },
+
             populateTopicDropdown: function() {
                 const topicSelect = document.getElementById('topic-select');
                 if (!topicSelect) return;
@@ -214,14 +255,11 @@
                 errorEl.textContent = '';
                 if (!tenantName) { errorEl.textContent = 'Team name cannot be empty.'; return; }
                 btn.textContent = 'Creating...'; btn.disabled = true;
-
                 try {
-                    const response = await fetch(`${this.config.API_URL}/tenants`, {
+                    await fetch(`${this.config.API_URL}/tenants`, {
                         method: 'POST', headers: { 'Authorization': this.idToken, 'Content-Type': 'application/json' },
                         body: JSON.stringify({ tenant_name: tenantName })
                     });
-                    if (!response.ok) throw new Error('Failed to create tenant.');
-                    // Re-initialize the app to get the new session with the updated tenant_id claim
                     alert('Team created successfully! Please log in again to access your dashboard.');
                     this.logout();
                 } catch (e) {
@@ -295,7 +333,7 @@
                 const userData = { Username: username, Pool: this.userPool };
                 this.cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
                 this.cognitoUser.authenticateUser(authDetails, {
-                    onSuccess: async (result) => { this.init(); },
+                    onSuccess: (result) => { this.init(); },
                     onFailure: (err) => { 
                         loginError.textContent = err.message || JSON.stringify(err);
                         loginBtn.textContent = 'Login';
@@ -350,7 +388,6 @@
                 info.textContent = 'Fetching data...';
                 if(fetchBtn) { fetchBtn.disabled = true; }
                 Array.from(rangeBtns).forEach(b => b.disabled = true);
-
                 let queryUrl = `${this.config.API_URL}/query?topic=${topic}`;
                 if (days) {
                     const endDate = new Date();
@@ -358,7 +395,6 @@
                     startDate.setDate(endDate.getDate() - days);
                     queryUrl += `&start_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`;
                 }
-
                 try {
                     const response = await fetch(queryUrl, { headers: { 'Authorization': this.idToken } });
                     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
