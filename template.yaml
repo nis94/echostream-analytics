@@ -133,7 +133,6 @@ Resources:
     UpdateReplacePolicy: Delete
     Type: AWS::S3::Bucket
     Properties:
-      AutoDeleteObjects: true
       BucketName: !Sub "echostream-datalake-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -392,7 +391,6 @@ Resources:
     UpdateReplacePolicy: Delete
     Type: AWS::S3::Bucket
     Properties:
-      AutoDeleteObjects: true
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: index.html
